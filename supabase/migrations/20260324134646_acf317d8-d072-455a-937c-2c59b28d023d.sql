@@ -1,0 +1,2 @@
+ALTER TABLE public.auto_trade_config DROP CONSTRAINT IF EXISTS auto_trade_config_pair_unique;
+ALTER TABLE public.auto_trade_config ADD CONSTRAINT auto_trade_config_pair_strategy_unique UNIQUE (pair, strategy);
