@@ -53,13 +53,8 @@ export default function Dashboard() {
     { key: 'dashboard', label: 'Dashboard', emoji: '📊' },
   ];
 
-  const handleApplyPineCode = (code: string, name: string) => {
+  const handleApplyPineCode = (code: string, _name: string) => {
     setCustomPineCode(code);
-    // Try to detect template match
-    const { INDICATOR_TEMPLATES } = require('@/components/StrategyPanel');
-    const tpl = INDICATOR_TEMPLATES?.find((t: any) => t.pineCode === code);
-    if (tpl?.strategyId) setStrategy(tpl.strategyId);
-    if (tpl) setActiveIndicator(tpl.id);
   };
 
   return (
