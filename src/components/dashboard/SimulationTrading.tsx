@@ -60,10 +60,8 @@ interface SimSnapshot {
 const INITIAL_CAPITAL = 1_000_000;
 
 const STRATEGY_LABELS: Record<string, { label: string; desc: string; color: string }> = {
-  dual_signal: { label: 'Dual Signal', desc: 'GainzAlgo + Fabio Valentini', color: 'text-accent' },
-  swing_trading: { label: 'Swing Trading', desc: 'CRT Overlay (Sweep Reversal)', color: 'text-primary' },
-  time_prediction: { label: 'Time Prediction', desc: 'Prediksi Jam Naik/Turun (WIT)', color: 'text-terminal-yellow' },
-  zero_lag_trend: { label: 'Zero Lag Trend', desc: 'AlgoAlpha ZLEMA + ATR Band', color: 'text-terminal-cyan' },
+  alpha_simons: { label: '⚡ Alpha Simons', desc: 'Momentum & Scalping — zScore, RSI, Trailing Stop', color: 'text-terminal-yellow' },
+  institutional_smc: { label: '🏛️ Institutional 3.0', desc: 'Smart Money Concepts — EMA200, FVG, Liquidity Sweep', color: 'text-primary' },
 };
 
 function formatDuration(ms: number): string {
