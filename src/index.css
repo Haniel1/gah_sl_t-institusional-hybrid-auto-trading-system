@@ -1,0 +1,189 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    --background: 220 20% 6%;
+    --foreground: 210 20% 90%;
+
+    --card: 220 18% 10%;
+    --card-foreground: 210 20% 90%;
+
+    --popover: 220 18% 10%;
+    --popover-foreground: 210 20% 90%;
+
+    --primary: 174 72% 50%;
+    --primary-foreground: 220 20% 6%;
+
+    --secondary: 220 16% 16%;
+    --secondary-foreground: 210 20% 80%;
+
+    --muted: 220 14% 14%;
+    --muted-foreground: 215 12% 50%;
+
+    --accent: 174 72% 50%;
+    --accent-foreground: 220 20% 6%;
+
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 220 14% 18%;
+    --input: 220 14% 18%;
+    --ring: 174 72% 50%;
+
+    --radius: 0.5rem;
+
+    --profit: 142 72% 50%;
+    --loss: 0 72% 55%;
+    --warning: 45 93% 58%;
+    --chart-bg: 220 20% 4%;
+    --sidebar-bg: 220 18% 8%;
+    --terminal-green: 142 72% 50%;
+    --terminal-red: 0 72% 55%;
+    --terminal-cyan: 174 72% 50%;
+    --terminal-yellow: 45 93% 58%;
+    --terminal-orange: 25 95% 55%;
+
+    --sidebar-background: 220 18% 8%;
+    --sidebar-foreground: 210 20% 80%;
+    --sidebar-primary: 174 72% 50%;
+    --sidebar-primary-foreground: 220 20% 6%;
+    --sidebar-accent: 220 14% 14%;
+    --sidebar-accent-foreground: 210 20% 90%;
+    --sidebar-border: 220 14% 18%;
+    --sidebar-ring: 174 72% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+@layer components {
+  .terminal-card {
+    @apply bg-card border border-border rounded-lg transition-colors;
+  }
+
+  .terminal-card:hover {
+    border-color: hsl(var(--border) / 0.8);
+  }
+
+  .price-up {
+    color: hsl(var(--profit));
+  }
+
+  .price-down {
+    color: hsl(var(--loss));
+  }
+
+  .glow-cyan {
+    box-shadow: 0 0 20px hsl(var(--terminal-cyan) / 0.15);
+  }
+
+  .glow-green {
+    box-shadow: 0 0 12px hsl(var(--terminal-green) / 0.2);
+  }
+
+  .glow-red {
+    box-shadow: 0 0 12px hsl(var(--terminal-red) / 0.2);
+  }
+
+  /* Smooth scrollbar */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.3);
+  }
+
+  /* Better focus states */
+  .focus-ring {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Panel header style */
+  .panel-header {
+    @apply flex items-center justify-between px-3 py-2 border-b border-border bg-card/50;
+  }
+
+  .panel-header-title {
+    @apply text-[11px] font-bold text-foreground uppercase tracking-wider;
+  }
+
+  /* Tab button style */
+  .tab-button {
+    @apply flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider transition-all whitespace-nowrap;
+  }
+
+  .tab-button-active {
+    @apply text-primary border-b-2 border-primary bg-primary/5;
+  }
+
+  .tab-button-inactive {
+    @apply text-muted-foreground hover:text-foreground hover:bg-muted/50;
+  }
+
+  /* Action button base */
+  .btn-trade-buy {
+    @apply flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg font-mono text-xs font-bold transition-all
+      bg-profit/10 text-profit border border-profit/20 hover:bg-profit/20 hover:border-profit/40
+      active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .btn-trade-sell {
+    @apply flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg font-mono text-xs font-bold transition-all
+      bg-loss/10 text-loss border border-loss/20 hover:bg-loss/20 hover:border-loss/40
+      active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .btn-trade-auto {
+    @apply flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg font-mono text-xs font-bold transition-all
+      active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none;
+  }
+}
+
+@layer utilities {
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.25s ease-out;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

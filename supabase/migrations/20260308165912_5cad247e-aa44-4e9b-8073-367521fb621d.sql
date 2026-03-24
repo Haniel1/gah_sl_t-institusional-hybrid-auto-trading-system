@@ -1,0 +1,1 @@
+UPDATE auto_trade_config SET total_pnl = 0, win_count = 0, loss_count = 0, updated_at = now();

@@ -1,0 +1,1 @@
+UPDATE auto_trade_config SET telegram_enabled = false, notify_telegram = false, updated_at = now();
