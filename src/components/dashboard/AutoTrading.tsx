@@ -373,7 +373,7 @@ export function AutoTrading({ coins }: Props) {
         })}
         {sortedConfigs.length === 0 && (
           <div className="col-span-full text-center py-6 text-muted-foreground text-xs">
-            Belum ada koin. Klik "Tambah Koin" atau tambahkan koin default: {DEFAULT_COINS.join(', ')}
+            Belum ada koin untuk strategi ini. Klik "Tambah Koin" untuk menambahkan.
           </div>
         )}
       </div>
