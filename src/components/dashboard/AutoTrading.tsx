@@ -180,17 +180,20 @@ export function AutoTrading({ coins }: Props) {
     toast({ title: 'Semua koin dinonaktifkan' });
   }, [configs]);
 
-  const enabledCount = configs.filter(c => c.enabled).length;
-  const totalPnl = configs.reduce((acc, c) => acc + (c.total_pnl || 0), 0);
-  const totalWins = configs.reduce((acc, c) => acc + (c.win_count || 0), 0);
-  const totalLosses = configs.reduce((acc, c) => acc + (c.loss_count || 0), 0);
-  const totalCapital = configs.reduce((acc, c) => acc + (c.current_capital || 0), 0);
-  const existingSymbols = configs.map(c => c.coin_symbol);
+  const filteredConfigs = configs.filter(c => c.strategy === activeStrategy);
+  const enabledCount = filteredConfigs.filter(c => c.enabled).length;
+  const totalPnl = filteredConfigs.reduce((acc, c) => acc + (c.total_pnl || 0), 0);
+  const totalWins = filteredConfigs.reduce((acc, c) => acc + (c.win_count || 0), 0);
+  const totalLosses = filteredConfigs.reduce((acc, c) => acc + (c.loss_count || 0), 0);
+  const totalCapital = filteredConfigs.reduce((acc, c) => acc + (c.current_capital || 0), 0);
+  const existingSymbols = filteredConfigs.map(c => c.coin_symbol);
 
-  const sortedConfigs = [...configs].sort((a, b) => {
+  const sortedConfigs = [...filteredConfigs].sort((a, b) => {
     if (a.enabled !== b.enabled) return a.enabled ? -1 : 1;
     return (b.total_pnl || 0) - (a.total_pnl || 0);
   });
+
+  const activeStratMeta = STRATEGY_OPTIONS.find(s => s.key === activeStrategy) || STRATEGY_OPTIONS[0];
 
   if (loading) {
     return (
@@ -207,7 +210,7 @@ export function AutoTrading({ coins }: Props) {
         <div className="flex items-center gap-2">
           <Bot className="h-4 w-4 text-primary" />
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Auto Trading — Trend Following
+            Auto Trading
           </h3>
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/10 text-accent font-semibold">
             {enabledCount} aktif
@@ -228,6 +231,26 @@ export function AutoTrading({ coins }: Props) {
             <RefreshCw className="h-3 w-3 text-muted-foreground" />
           </button>
         </div>
+      </div>
+
+      {/* Strategy Tabs */}
+      <div className="flex gap-2">
+        {STRATEGY_OPTIONS.map(opt => (
+          <button
+            key={opt.key}
+            onClick={() => setActiveStrategy(opt.key)}
+            className={`flex-1 px-3 py-2 rounded-md border text-left transition-all ${
+              activeStrategy === opt.key
+                ? `border-${opt.color} bg-${opt.color}/10`
+                : 'border-border bg-muted hover:border-muted-foreground/30'
+            }`}
+          >
+            <div className={`text-[11px] font-bold ${activeStrategy === opt.key ? `text-${opt.color}` : 'text-muted-foreground'}`}>
+              {opt.label}
+            </div>
+            <div className="text-[9px] text-muted-foreground">{opt.desc}</div>
+          </button>
+        ))}
       </div>
 
       {/* Summary */}
@@ -262,11 +285,23 @@ export function AutoTrading({ coins }: Props) {
       <div className="flex items-start gap-2 p-2 rounded-md bg-primary/5 border border-primary/20">
         <AlertTriangle className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
         <div className="text-[10px] text-primary space-y-0.5">
-          <p className="font-bold">Trend Following + Buy Low, Sell High</p>
-          <p>• Filter tren <b>EMA 200 (H4)</b> → Bullish = hanya BUY, Bearish = hanya SELL</p>
-          <p>• Entry di <b>Support/Resistance</b> (Swing Low/High 20 bar) + konfirmasi candlestick + RSI</p>
-          <p>• Stop Loss adaptif <b>ATR × 2</b> | Risk:Reward minimal <b>1:2</b></p>
-          <p>• Modal terisolasi per koin (Isolated Compounding)</p>
+          {activeStrategy === 'alpha_simons' ? (
+            <>
+              <p className="font-bold">⚡ Alpha Simons — Momentum & Scalping</p>
+              <p>• Entry agresif: <b>zScore + RSI + Momentum</b> → Market Order</p>
+              <p>• Dynamic Trailing Stop: aktif di <b>+2%</b>, callback <b>1.5%</b></p>
+              <p>• Hard Stop Loss <b>2%</b> (Market Order) | Spread filter <b>0.8%</b></p>
+              <p>• Koin: BTC, ETH, BNB, XRP, BCH (Blue Chip)</p>
+            </>
+          ) : (
+            <>
+              <p className="font-bold">🏛️ Institutional 3.0 — Smart Money Concepts</p>
+              <p>• Filter tren <b>EMA 200 (H4)</b> → Bullish only</p>
+              <p>• Entry: <b>Liquidity Sweep + FVG + Order Flow</b></p>
+              <p>• TP berjenjang <b>R:R 1:2</b> | Hard SL <b>2%</b></p>
+              <p>• Koin: SOL, LINK, ICP, DOT, ADA, NEAR (Mid-Cap)</p>
+            </>
+          )}
         </div>
       </div>
 
