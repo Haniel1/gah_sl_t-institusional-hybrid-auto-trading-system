@@ -1,0 +1,1 @@
+ALTER TABLE public.simulation_state ADD COLUMN IF NOT EXISTS highest_price_seen numeric DEFAULT NULL;

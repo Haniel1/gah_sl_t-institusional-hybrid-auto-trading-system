@@ -244,6 +244,7 @@ export type Database = {
           entry_price: number | null
           entry_reasons: string[] | null
           entry_time: string | null
+          highest_price_seen: number | null
           id: string
           is_running: boolean
           last_tick_at: string | null
@@ -261,6 +262,7 @@ export type Database = {
           entry_price?: number | null
           entry_reasons?: string[] | null
           entry_time?: string | null
+          highest_price_seen?: number | null
           id?: string
           is_running?: boolean
           last_tick_at?: string | null
@@ -278,6 +280,7 @@ export type Database = {
           entry_price?: number | null
           entry_reasons?: string[] | null
           entry_time?: string | null
+          highest_price_seen?: number | null
           id?: string
           is_running?: boolean
           last_tick_at?: string | null
