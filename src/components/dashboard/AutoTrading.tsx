@@ -130,7 +130,7 @@ export function AutoTrading({ coins }: Props) {
     const pair = `${symbol.toLowerCase()}_idr`;
     const initCap = COIN_ALLOCATION[symbol] || 400000;
     const { error } = await supabase.from('auto_trade_config').insert({
-      pair, coin_symbol: symbol, strategy: 'trend-following',
+      pair, coin_symbol: symbol, strategy: activeStrategy,
       enabled: false, tp_pct: 5, sl_pct: 3,
       initial_balance: initCap, current_balance: initCap,
       initial_capital: initCap, current_capital: initCap,
@@ -138,10 +138,10 @@ export function AutoTrading({ coins }: Props) {
     if (error) {
       toast({ title: `Gagal menambah ${symbol}`, variant: 'destructive' });
     } else {
-      toast({ title: `${symbol} ditambahkan (Modal: Rp ${initCap.toLocaleString('id-ID')})` });
+      toast({ title: `${symbol} ditambahkan ke ${activeStrategy === 'alpha_simons' ? 'Alpha Simons' : 'Institutional 3.0'}` });
       fetchConfigs();
     }
-  }, [fetchConfigs]);
+  }, [fetchConfigs, activeStrategy]);
 
   const toggleEnabled = useCallback(async (config: AutoTradeConfig) => {
     setUpdating(config.id);
