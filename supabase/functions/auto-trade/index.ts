@@ -63,7 +63,7 @@ serve(async (req) => {
 
     const body = await req.json();
     const { action, pair, type, price, user_id } = body;
-    const effectiveStrategy = 'trend-following';
+    const effectiveStrategy = body.strategy || 'alpha_simons';
 
     let apiKey = Deno.env.get('INDODAX_API_KEY') || '';
     let secret = Deno.env.get('INDODAX_SECRET') || '';

@@ -38,11 +38,16 @@ interface AutoTradeConfig {
 
 // Fixed capital allocation
 const COIN_ALLOCATION: Record<string, number> = {
-  BTC: 400000, ETH: 400000, SOL: 400000, BNB: 400000, LINK: 400000,
-  ICP: 200000,
+  // Alpha Simons (Blue Chip & High Volume)
+  BTC: 400000, ETH: 400000, BNB: 400000, XRP: 400000, BCH: 400000,
+  // Institutional 3.0 (Mid-Cap)
+  SOL: 400000, LINK: 400000, ICP: 200000, DOT: 400000, ADA: 400000, NEAR: 400000,
 };
 
-const DEFAULT_COINS = ['BTC', 'ETH', 'SOL', 'BNB', 'LINK', 'ICP'];
+const STRATEGY_OPTIONS = [
+  { key: 'alpha_simons', label: '⚡ Alpha Simons', desc: 'Momentum & Scalping', color: 'terminal-yellow' },
+  { key: 'institutional_smc', label: '🏛️ Institutional 3.0', desc: 'Smart Money Concepts', color: 'primary' },
+];
 
 function AddCoinToAutoTrade({ coins, existingSymbols, onAdd }: {
   coins: CoinData[];
@@ -102,13 +107,14 @@ function AddCoinToAutoTrade({ coins, existingSymbols, onAdd }: {
 }
 
 export function AutoTrading({ coins }: Props) {
+  const [activeStrategy, setActiveStrategy] = useState('alpha_simons');
   const [configs, setConfigs] = useState<AutoTradeConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState<string | null>(null);
 
   const fetchConfigs = useCallback(async () => {
-    const { data } = await supabase.from('auto_trade_config').select('*').eq('strategy', 'trend-following').order('coin_symbol');
+    const { data } = await supabase.from('auto_trade_config').select('*').order('coin_symbol');
     if (data) setConfigs(data as any[]);
   }, []);
 
@@ -124,7 +130,7 @@ export function AutoTrading({ coins }: Props) {
     const pair = `${symbol.toLowerCase()}_idr`;
     const initCap = COIN_ALLOCATION[symbol] || 400000;
     const { error } = await supabase.from('auto_trade_config').insert({
-      pair, coin_symbol: symbol, strategy: 'trend-following',
+      pair, coin_symbol: symbol, strategy: activeStrategy,
       enabled: false, tp_pct: 5, sl_pct: 3,
       initial_balance: initCap, current_balance: initCap,
       initial_capital: initCap, current_capital: initCap,
@@ -132,10 +138,10 @@ export function AutoTrading({ coins }: Props) {
     if (error) {
       toast({ title: `Gagal menambah ${symbol}`, variant: 'destructive' });
     } else {
-      toast({ title: `${symbol} ditambahkan (Modal: Rp ${initCap.toLocaleString('id-ID')})` });
+      toast({ title: `${symbol} ditambahkan ke ${activeStrategy === 'alpha_simons' ? 'Alpha Simons' : 'Institutional 3.0'}` });
       fetchConfigs();
     }
-  }, [fetchConfigs]);
+  }, [fetchConfigs, activeStrategy]);
 
   const toggleEnabled = useCallback(async (config: AutoTradeConfig) => {
     setUpdating(config.id);
@@ -174,17 +180,20 @@ export function AutoTrading({ coins }: Props) {
     toast({ title: 'Semua koin dinonaktifkan' });
   }, [configs]);
 
-  const enabledCount = configs.filter(c => c.enabled).length;
-  const totalPnl = configs.reduce((acc, c) => acc + (c.total_pnl || 0), 0);
-  const totalWins = configs.reduce((acc, c) => acc + (c.win_count || 0), 0);
-  const totalLosses = configs.reduce((acc, c) => acc + (c.loss_count || 0), 0);
-  const totalCapital = configs.reduce((acc, c) => acc + (c.current_capital || 0), 0);
-  const existingSymbols = configs.map(c => c.coin_symbol);
+  const filteredConfigs = configs.filter(c => c.strategy === activeStrategy);
+  const enabledCount = filteredConfigs.filter(c => c.enabled).length;
+  const totalPnl = filteredConfigs.reduce((acc, c) => acc + (c.total_pnl || 0), 0);
+  const totalWins = filteredConfigs.reduce((acc, c) => acc + (c.win_count || 0), 0);
+  const totalLosses = filteredConfigs.reduce((acc, c) => acc + (c.loss_count || 0), 0);
+  const totalCapital = filteredConfigs.reduce((acc, c) => acc + (c.current_capital || 0), 0);
+  const existingSymbols = filteredConfigs.map(c => c.coin_symbol);
 
-  const sortedConfigs = [...configs].sort((a, b) => {
+  const sortedConfigs = [...filteredConfigs].sort((a, b) => {
     if (a.enabled !== b.enabled) return a.enabled ? -1 : 1;
     return (b.total_pnl || 0) - (a.total_pnl || 0);
   });
+
+  const activeStratMeta = STRATEGY_OPTIONS.find(s => s.key === activeStrategy) || STRATEGY_OPTIONS[0];
 
   if (loading) {
     return (
@@ -201,7 +210,7 @@ export function AutoTrading({ coins }: Props) {
         <div className="flex items-center gap-2">
           <Bot className="h-4 w-4 text-primary" />
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Auto Trading — Trend Following
+            Auto Trading
           </h3>
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/10 text-accent font-semibold">
             {enabledCount} aktif
@@ -222,6 +231,26 @@ export function AutoTrading({ coins }: Props) {
             <RefreshCw className="h-3 w-3 text-muted-foreground" />
           </button>
         </div>
+      </div>
+
+      {/* Strategy Tabs */}
+      <div className="flex gap-2">
+        {STRATEGY_OPTIONS.map(opt => (
+          <button
+            key={opt.key}
+            onClick={() => setActiveStrategy(opt.key)}
+            className={`flex-1 px-3 py-2 rounded-md border text-left transition-all ${
+              activeStrategy === opt.key
+                ? `border-${opt.color} bg-${opt.color}/10`
+                : 'border-border bg-muted hover:border-muted-foreground/30'
+            }`}
+          >
+            <div className={`text-[11px] font-bold ${activeStrategy === opt.key ? `text-${opt.color}` : 'text-muted-foreground'}`}>
+              {opt.label}
+            </div>
+            <div className="text-[9px] text-muted-foreground">{opt.desc}</div>
+          </button>
+        ))}
       </div>
 
       {/* Summary */}
@@ -256,11 +285,23 @@ export function AutoTrading({ coins }: Props) {
       <div className="flex items-start gap-2 p-2 rounded-md bg-primary/5 border border-primary/20">
         <AlertTriangle className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
         <div className="text-[10px] text-primary space-y-0.5">
-          <p className="font-bold">Trend Following + Buy Low, Sell High</p>
-          <p>• Filter tren <b>EMA 200 (H4)</b> → Bullish = hanya BUY, Bearish = hanya SELL</p>
-          <p>• Entry di <b>Support/Resistance</b> (Swing Low/High 20 bar) + konfirmasi candlestick + RSI</p>
-          <p>• Stop Loss adaptif <b>ATR × 2</b> | Risk:Reward minimal <b>1:2</b></p>
-          <p>• Modal terisolasi per koin (Isolated Compounding)</p>
+          {activeStrategy === 'alpha_simons' ? (
+            <>
+              <p className="font-bold">⚡ Alpha Simons — Momentum & Scalping</p>
+              <p>• Entry agresif: <b>zScore + RSI + Momentum</b> → Market Order</p>
+              <p>• Dynamic Trailing Stop: aktif di <b>+2%</b>, callback <b>1.5%</b></p>
+              <p>• Hard Stop Loss <b>2%</b> (Market Order) | Spread filter <b>0.8%</b></p>
+              <p>• Koin: BTC, ETH, BNB, XRP, BCH (Blue Chip)</p>
+            </>
+          ) : (
+            <>
+              <p className="font-bold">🏛️ Institutional 3.0 — Smart Money Concepts</p>
+              <p>• Filter tren <b>EMA 200 (H4)</b> → Bullish only</p>
+              <p>• Entry: <b>Liquidity Sweep + FVG + Order Flow</b></p>
+              <p>• TP berjenjang <b>R:R 1:2</b> | Hard SL <b>2%</b></p>
+              <p>• Koin: SOL, LINK, ICP, DOT, ADA, NEAR (Mid-Cap)</p>
+            </>
+          )}
         </div>
       </div>
 
@@ -332,7 +373,7 @@ export function AutoTrading({ coins }: Props) {
         })}
         {sortedConfigs.length === 0 && (
           <div className="col-span-full text-center py-6 text-muted-foreground text-xs">
-            Belum ada koin. Klik "Tambah Koin" atau tambahkan koin default: {DEFAULT_COINS.join(', ')}
+            Belum ada koin untuk strategi ini. Klik "Tambah Koin" untuk menambahkan.
           </div>
         )}
       </div>
