@@ -107,13 +107,14 @@ function AddCoinToAutoTrade({ coins, existingSymbols, onAdd }: {
 }
 
 export function AutoTrading({ coins }: Props) {
+  const [activeStrategy, setActiveStrategy] = useState('alpha_simons');
   const [configs, setConfigs] = useState<AutoTradeConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState<string | null>(null);
 
   const fetchConfigs = useCallback(async () => {
-    const { data } = await supabase.from('auto_trade_config').select('*').eq('strategy', 'trend-following').order('coin_symbol');
+    const { data } = await supabase.from('auto_trade_config').select('*').order('coin_symbol');
     if (data) setConfigs(data as any[]);
   }, []);
 
