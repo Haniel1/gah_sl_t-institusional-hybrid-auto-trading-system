@@ -3,6 +3,8 @@ import type { CandleData } from '@/hooks/useIndodax';
 import { calculateGainzAlgo, calculateFabioValentini, getCurrentHalvingPhase } from '@/lib/strategies';
 import { supabase } from '@/integrations/supabase/client';
 
+const APP_NAME = '🤖 GainzHalving';
+
 async function isNotifyEnabled(pair: string): Promise<boolean> {
   const { data } = await supabase
     .from('auto_trade_config')
@@ -18,7 +20,8 @@ async function sendTelegramNotify(pair: string, type: string, price: number, str
 
   const symbol = pair.replace('_idr', '').toUpperCase();
   const emoji = type === 'buy' ? '🟢 BUY' : '🔴 SELL';
-  const message = `${emoji} <b>${symbol}/IDR</b>\n` +
+  const message = `<b>${APP_NAME}</b>\n\n` +
+    `${emoji} <b>${symbol}/IDR</b>\n` +
     `💰 Price: Rp ${price.toLocaleString('id-ID')}\n` +
     `📈 Strategy: ${strategy}\n` +
     `🕐 ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`;
