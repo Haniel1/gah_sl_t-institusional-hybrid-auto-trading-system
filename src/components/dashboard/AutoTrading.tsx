@@ -38,11 +38,16 @@ interface AutoTradeConfig {
 
 // Fixed capital allocation
 const COIN_ALLOCATION: Record<string, number> = {
-  BTC: 400000, ETH: 400000, SOL: 400000, BNB: 400000, LINK: 400000,
-  ICP: 200000,
+  // Alpha Simons (Blue Chip & High Volume)
+  BTC: 400000, ETH: 400000, BNB: 400000, XRP: 400000, BCH: 400000,
+  // Institutional 3.0 (Mid-Cap)
+  SOL: 400000, LINK: 400000, ICP: 200000, DOT: 400000, ADA: 400000, NEAR: 400000,
 };
 
-const DEFAULT_COINS = ['BTC', 'ETH', 'SOL', 'BNB', 'LINK', 'ICP'];
+const STRATEGY_OPTIONS = [
+  { key: 'alpha_simons', label: '⚡ Alpha Simons', desc: 'Momentum & Scalping', color: 'terminal-yellow' },
+  { key: 'institutional_smc', label: '🏛️ Institutional 3.0', desc: 'Smart Money Concepts', color: 'primary' },
+];
 
 function AddCoinToAutoTrade({ coins, existingSymbols, onAdd }: {
   coins: CoinData[];
