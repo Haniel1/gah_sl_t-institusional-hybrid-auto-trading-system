@@ -76,7 +76,7 @@ function formatDuration(ms: number): string {
 }
 
 export function SimulationTrading({ coins }: Props) {
-  const [activeStrategy, setActiveStrategy] = useState<string>('dual_signal');
+  const [activeStrategy, setActiveStrategy] = useState<string>('alpha_simons');
   const [allStatesRaw, setAllStatesRaw] = useState<SimState[]>([]);
   const [allTradesRaw, setAllTradesRaw] = useState<SimTrade[]>([]);
   const [allSnapsRaw, setAllSnapsRaw] = useState<SimSnapshot[]>([]);
