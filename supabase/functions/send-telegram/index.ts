@@ -6,6 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+const APP_NAME = '🤖 GainzHalving';
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -13,6 +15,9 @@ serve(async (req) => {
 
   try {
     const { message, user_id } = await req.json();
+
+    // Prepend app name if not already present
+    const finalMessage = message.includes('GainzHalving') ? message : `<b>${APP_NAME}</b>\n\n${message}`;
 
     let token = Deno.env.get('TELEGRAM_BOT_TOKEN')!;
     let chatId = Deno.env.get('TELEGRAM_CHAT_ID')!;
@@ -38,7 +43,7 @@ serve(async (req) => {
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'HTML' }),
+      body: JSON.stringify({ chat_id: chatId, text: finalMessage, parse_mode: 'HTML' }),
     });
 
     const data = await res.json();
