@@ -3,28 +3,54 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Dashboard from "./pages/Index";
 import Settings from "./pages/Settings";
 import AutoTradingPage from "./pages/AutoTradingPage";
 import TradeHistory from "./pages/TradeHistory";
 import TradingViewPage from "./pages/TradingView";
 import CryptoNews from "./pages/CryptoNews";
+import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
 
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+  if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
 function AppRoutes() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <Routes>
-      <Route path="/" element={<Dashboard />} />
-      <Route path="/settings" element={<Settings />} />
-      <Route path="/auto-trading" element={<AutoTradingPage />} />
+      <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+      <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/auto-trading" element={<ProtectedRoute><AutoTradingPage /></ProtectedRoute>} />
       <Route path="/short-term" element={<Navigate to="/auto-trading" replace />} />
       <Route path="/long-term" element={<Navigate to="/auto-trading" replace />} />
-      <Route path="/login" element={<Navigate to="/" replace />} />
-      <Route path="/trade-history" element={<TradeHistory />} />
-      <Route path="/trading-view" element={<TradingViewPage />} />
-      <Route path="/news" element={<CryptoNews />} />
+      <Route path="/trade-history" element={<ProtectedRoute><TradeHistory /></ProtectedRoute>} />
+      <Route path="/trading-view" element={<ProtectedRoute><TradingViewPage /></ProtectedRoute>} />
+      <Route path="/news" element={<ProtectedRoute><CryptoNews /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
@@ -36,7 +62,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AppRoutes />
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
