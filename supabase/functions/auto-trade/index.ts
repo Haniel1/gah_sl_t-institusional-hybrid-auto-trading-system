@@ -6,6 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const APP_NAME = '🤖 GainzHalving';
+
 async function signRequest(params: string, secret: string): Promise<string> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-512" }, false, ["sign"]);
@@ -25,6 +27,21 @@ async function indodaxPrivateApi(method: string, apiKey: string, secret: string,
   return await res.json();
 }
 
+async function getOrderbookAskPrice(pair: string): Promise<number | null> {
+  try {
+    const pairClean = pair.replace('_', '');
+    const res = await fetch(`https://indodax.com/api/depth/${pairClean}`);
+    const data = await res.json();
+    const asks = data.sell || [];
+    if (asks.length > 0) {
+      return Number(asks[0][0]); // best ask price
+    }
+  } catch (e) {
+    console.error('Failed to get orderbook ask:', e);
+  }
+  return null;
+}
+
 async function sendTelegramNotification(token: string, chatId: string, message: string) {
   try {
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -39,7 +56,6 @@ async function sendTelegramNotification(token: string, chatId: string, message: 
   }
 }
 
-// Fixed capital allocation
 const COIN_ALLOCATION: Record<string, number> = {
   btc: 400000, eth: 400000, sol: 400000, bnb: 400000, link: 400000,
   icp: 200000,
@@ -86,7 +102,6 @@ serve(async (req) => {
 
     // ── TOGGLE ──
     if (action === 'toggle') {
-      // Search by pair only (not strategy) to handle existing rows with old strategy names
       const { data: existing } = await supabase
         .from('auto_trade_config')
         .select('*')
@@ -122,7 +137,7 @@ serve(async (req) => {
       }
     }
 
-    // ── EXECUTE (manual trade) ──
+    // ── EXECUTE (manual/auto trade) ──
     if (action === 'execute') {
       let config: any = null;
       const { data: existingConfig } = await supabase
@@ -160,6 +175,8 @@ serve(async (req) => {
       let tradeResult: any = null;
       let amount = 0;
       let total = 0;
+      const orderMethod = body.order_method || 'market'; // 'market' or 'limit'
+      const reason = body.reason || ''; // 'take_profit', 'stop_loss', or ''
 
       if (!apiKey || !secret) {
         return new Response(JSON.stringify({ error: 'INDODAX_API_KEY atau INDODAX_SECRET belum dikonfigurasi' }), {
@@ -167,19 +184,28 @@ serve(async (req) => {
         });
       }
 
-      if (type === 'buy' && (config.position === 'long' || config.status === 'holding')) {
-        return new Response(JSON.stringify({
-          success: false, error: `Sudah ada posisi BUY terbuka untuk ${symbol.toUpperCase()}.`, blocked: true,
-        }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-
+      // ── BUY ──
       if (type === 'buy') {
+        if (config.position === 'long' || config.status === 'holding') {
+          return new Response(JSON.stringify({
+            success: false, error: `Sudah ada posisi BUY terbuka untuk ${symbol.toUpperCase()}.`, blocked: true,
+          }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+
         const idrAmount = config.current_capital || config.initial_capital || 400000;
+
+        // Get best ask price from orderbook for slippage awareness
+        const askPrice = await getOrderbookAskPrice(pairFormatted);
+        const effectivePrice = askPrice || Number(price);
+
+        // === MARKET ORDER BUY: use total_idr ===
         const tradeParams: Record<string, string> = {
-          pair: pairFormatted, type: 'buy',
-          price: Math.floor(Number(price)).toString(),
-          idr: Math.floor(idrAmount).toString(),
+          pair: pairFormatted,
+          type: 'buy',
+          total_idr: Math.floor(idrAmount).toString(),
         };
+
+        console.log(`[BUY] Market Order - pair: ${pairFormatted}, total_idr: ${idrAmount}, ask_price: ${askPrice}, last_price: ${price}`);
         tradeResult = await indodaxPrivateApi('trade', apiKey, secret, tradeParams);
 
         if (tradeResult?.success !== 1 && tradeResult?.return === undefined) {
@@ -188,11 +214,50 @@ serve(async (req) => {
           }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 
-        amount = tradeResult?.return?.order?.remain_idr
-          ? (idrAmount - Number(tradeResult.return.order.remain_idr)) / Number(price)
-          : idrAmount / Number(price);
-        total = amount * Number(price);
-      } else if (type === 'sell') {
+        // Calculate actual amount from response
+        const orderReturn = tradeResult?.return;
+        const spentIdr = orderReturn?.order?.spend_idr
+          ? Number(orderReturn.order.spend_idr)
+          : idrAmount;
+        amount = spentIdr / effectivePrice;
+        total = spentIdr;
+
+        // Update config: position = long, holding
+        const newCapital = (config.current_capital || config.initial_capital || 400000) - total;
+        await supabase.from('auto_trade_config').update({
+          current_capital: newCapital, current_balance: newCapital,
+          entry_price: effectivePrice, entry_time: new Date().toISOString(),
+          status: 'holding', position: 'long', last_trade_at: new Date().toISOString(),
+        }).eq('id', config.id);
+
+        // Log trade
+        await supabase.from('trade_history').insert({
+          pair, type: 'buy', price: effectivePrice, amount, total,
+          strategy: effectiveStrategy, profit_loss: 0, balance_after: newCapital,
+        });
+
+        // Telegram notification
+        if (telegramToken && chatId) {
+          const msg = `<b>${APP_NAME}</b>\n\n` +
+            `✅ 🟢 MARKET BUY <b>${symbol.toUpperCase()}/IDR</b>\n` +
+            `💰 Harga Ask: Rp ${effectivePrice.toLocaleString('id-ID')}\n` +
+            `📊 Jumlah: ${amount.toFixed(8)}\n` +
+            `💵 Total: Rp ${Math.floor(total).toLocaleString('id-ID')}\n` +
+            `💼 Sisa Modal: Rp ${Math.floor(newCapital).toLocaleString('id-ID')}\n` +
+            `📋 Strategi: ${effectiveStrategy}\n` +
+            `🕐 ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`;
+          await sendTelegramNotification(telegramToken, chatId, msg);
+        }
+
+        return new Response(JSON.stringify({
+          success: true, trade: tradeResult, balance: (config.current_capital || 400000) - total,
+          amount, total, order_type: 'market_buy',
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // ── SELL ──
+      if (type === 'sell') {
+        // Get current coin balance from Indodax
         const infoRes = await indodaxPrivateApi('getInfo', apiKey, secret);
         const coinBalance = infoRes?.return?.balance?.[symbol] || '0';
         if (Number(coinBalance) <= 0) {
@@ -201,12 +266,50 @@ serve(async (req) => {
           }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 
-        const tradeParams: Record<string, string> = {
-          pair: pairFormatted, type: 'sell',
-          price: Math.floor(Number(price)).toString(),
-          [symbol]: coinBalance,
-        };
-        tradeResult = await indodaxPrivateApi('trade', apiKey, secret, tradeParams);
+        amount = Number(coinBalance);
+        const currentPrice = Number(price);
+        const entryPrice = config.entry_price || currentPrice;
+        const grossProfitPct = ((currentPrice - entryPrice) / entryPrice) * 100;
+        const isStopLoss = reason === 'stop_loss' || (currentPrice <= entryPrice * 0.98);
+
+        let sellOrderType = '';
+
+        if (isStopLoss) {
+          // === STOP LOSS: MARKET ORDER SELL (instant) ===
+          const tradeParams: Record<string, string> = {
+            pair: pairFormatted,
+            type: 'sell',
+            [symbol]: coinBalance,
+          };
+          console.log(`[SELL] STOP LOSS Market Order - pair: ${pairFormatted}, amount: ${coinBalance}, price: ${currentPrice}, entry: ${entryPrice}`);
+          tradeResult = await indodaxPrivateApi('trade', apiKey, secret, tradeParams);
+          sellOrderType = 'market_sell_stoploss';
+        } else {
+          // === TAKE PROFIT: check min 1% gross profit ===
+          if (grossProfitPct < 1.0) {
+            return new Response(JSON.stringify({
+              success: false,
+              error: `Profit kotor ${grossProfitPct.toFixed(2)}% belum mencapai minimum 1%. Fee Indodax ~0.42%, profit bersih belum positif.`,
+              gross_profit_pct: grossProfitPct,
+              blocked: true,
+            }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }
+
+          // Get best ask price for limit order
+          const askPrice = await getOrderbookAskPrice(pairFormatted);
+          const limitPrice = askPrice || currentPrice;
+
+          // === TAKE PROFIT: LIMIT ORDER SELL ===
+          const tradeParams: Record<string, string> = {
+            pair: pairFormatted,
+            type: 'sell',
+            price: Math.floor(limitPrice).toString(),
+            [symbol]: coinBalance,
+          };
+          console.log(`[SELL] TAKE PROFIT Limit Order - pair: ${pairFormatted}, price: ${limitPrice}, amount: ${coinBalance}, gross_profit: ${grossProfitPct.toFixed(2)}%`);
+          tradeResult = await indodaxPrivateApi('trade', apiKey, secret, tradeParams);
+          sellOrderType = 'limit_sell_takeprofit';
+        }
 
         if (tradeResult?.success !== 1 && tradeResult?.return === undefined) {
           return new Response(JSON.stringify({
@@ -214,29 +317,12 @@ serve(async (req) => {
           }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 
-        amount = Number(coinBalance);
-        total = amount * Number(price);
-      }
-
-      // P&L
-      let profitLoss = 0;
-      let newCapital = config.current_capital || config.initial_capital || 400000;
-      let newTotalPnl = config.total_pnl || 0;
-
-      if (type === 'buy') {
-        newCapital -= total;
-        await supabase.from('auto_trade_config').update({
-          current_capital: newCapital, current_balance: newCapital,
-          entry_price: Number(price), entry_time: new Date().toISOString(),
-          status: 'holding', position: 'long', last_trade_at: new Date().toISOString(),
-        }).eq('id', config.id);
-      } else if (type === 'sell') {
-        const entryCost = config.entry_price ? config.entry_price * amount : total;
-        profitLoss = total - entryCost;
+        total = amount * currentPrice;
         const fee = total * 0.003;
-        profitLoss -= fee;
-        newCapital += total - fee;
-        newTotalPnl += profitLoss;
+        const entryCost = entryPrice * amount;
+        const profitLoss = total - entryCost - fee;
+        const newCapital = (config.current_capital || config.initial_capital || 400000) + total - fee;
+        const newTotalPnl = (config.total_pnl || 0) + profitLoss;
 
         await supabase.from('auto_trade_config').update({
           current_capital: newCapital, current_balance: newCapital,
@@ -246,30 +332,31 @@ serve(async (req) => {
           entry_price: null, entry_time: null,
           status: 'idle', position: 'none', last_trade_at: new Date().toISOString(),
         }).eq('id', config.id);
+
+        await supabase.from('trade_history').insert({
+          pair, type: 'sell', price: currentPrice, amount, total,
+          strategy: effectiveStrategy, profit_loss: profitLoss, balance_after: newCapital,
+        });
+
+        if (telegramToken && chatId) {
+          const typeLabel = isStopLoss ? '🔴 STOP LOSS (MARKET SELL)' : '🟡 TAKE PROFIT (LIMIT SELL)';
+          const msg = `<b>${APP_NAME}</b>\n\n` +
+            `${typeLabel} <b>${symbol.toUpperCase()}/IDR</b>\n` +
+            `💰 Harga: Rp ${currentPrice.toLocaleString('id-ID')}\n` +
+            `📊 Jumlah: ${amount.toFixed(8)}\n` +
+            `💵 Total: Rp ${Math.floor(total).toLocaleString('id-ID')}\n` +
+            `${profitLoss > 0 ? '📈' : '📉'} P&L: Rp ${Math.floor(profitLoss).toLocaleString('id-ID')} (${grossProfitPct?.toFixed(2) || '0'}%)\n` +
+            `💼 Modal: Rp ${Math.floor(newCapital).toLocaleString('id-ID')}\n` +
+            `📋 Strategi: ${effectiveStrategy}\n` +
+            `🕐 ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`;
+          await sendTelegramNotification(telegramToken, chatId, msg);
+        }
+
+        return new Response(JSON.stringify({
+          success: true, trade: tradeResult, balance: newCapital,
+          amount, total, profit_loss: profitLoss, order_type: sellOrderType,
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
-
-      await supabase.from('trade_history').insert({
-        pair, type, price: Number(price), amount, total,
-        strategy: effectiveStrategy,
-        profit_loss: profitLoss, balance_after: newCapital,
-      });
-
-      if (telegramToken && chatId) {
-        const emoji = type === 'buy' ? '🟢 BUY' : '🔴 SELL';
-        const msg = `<b>🤖 GainzHalving</b>\n\n` +
-          `✅ ${emoji} <b>${symbol.toUpperCase()}/IDR</b>\n` +
-          `💰 Harga: Rp ${Number(price).toLocaleString('id-ID')}\n` +
-          `📊 Jumlah: ${amount.toFixed(8)}\n` +
-          `💵 Total: Rp ${Math.floor(total).toLocaleString('id-ID')}\n` +
-          (profitLoss !== 0 ? `${profitLoss > 0 ? '📈' : '📉'} P&L: Rp ${Math.floor(profitLoss).toLocaleString('id-ID')}\n` : '') +
-          `💼 Modal: Rp ${Math.floor(newCapital).toLocaleString('id-ID')}\n` +
-          `🕐 ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`;
-        await sendTelegramNotification(telegramToken, chatId, msg);
-      }
-
-      return new Response(JSON.stringify({ success: true, trade: tradeResult, balance: newCapital, amount, total }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
     }
 
     // ── STATUS ──
@@ -281,7 +368,7 @@ serve(async (req) => {
       });
     }
 
-    // ── GET BALANCE ──
+    // ── GET BALANCE (test connection) ──
     if (action === 'get_balance') {
       const result = await indodaxPrivateApi('getInfo', apiKey, secret);
       return new Response(JSON.stringify(result), {
@@ -304,7 +391,6 @@ serve(async (req) => {
         });
       }
 
-      // Check Indodax balance for this coin
       const symbol = pair.replace('_idr', '');
       let coinBalance = 0;
       if (apiKey && secret) {
@@ -312,7 +398,6 @@ serve(async (req) => {
         coinBalance = Number(infoRes?.return?.balance?.[symbol] || 0);
       }
 
-      // Sync coin_balance to config
       await supabase.from('auto_trade_config').update({
         coin_balance: coinBalance,
         last_check_at: new Date().toISOString(),
