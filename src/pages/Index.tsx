@@ -23,6 +23,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { IndicatorTemplateId } from '@/components/TradingChart';
 
 const BOTTOM_TABS = [
+  { id: 'favorites' as const, label: 'Favorit', icon: '⭐' },
+  { id: 'autotrade' as const, label: 'Auto Trade', icon: '🤖' },
+  { id: 'prediction' as const, label: 'Prediksi', icon: '🕐' },
   { id: 'orderbook' as const, label: 'Order Book', icon: '📊' },
   { id: 'trades' as const, label: 'Trades', icon: '⚡' },
   { id: 'technical' as const, label: 'Technical', icon: '📈' },
@@ -36,7 +39,7 @@ export default function Dashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [view, setView] = useState<'chart' | 'dashboard'>('chart');
   const [strategyOpen, setStrategyOpen] = useState(false);
-  const [bottomTab, setBottomTab] = useState<'orderbook' | 'trades' | 'technical' | 'alerts' | 'ai'>('orderbook');
+  const [bottomTab, setBottomTab] = useState<'favorites' | 'autotrade' | 'prediction' | 'orderbook' | 'trades' | 'technical' | 'alerts' | 'ai'>('favorites');
   const [activeIndicator, setActiveIndicator] = useState<string | null>(null);
   const [customPineCode, setCustomPineCode] = useState('');
   const navigate = useNavigate();
@@ -137,7 +140,22 @@ export default function Dashboard() {
                   ))}
                 </div>
 
-                <div className="h-[200px] sm:h-[250px] lg:h-[280px] overflow-hidden">
+                <div className="h-[250px] sm:h-[300px] lg:h-[350px] overflow-y-auto scrollbar-thin">
+                  {bottomTab === 'favorites' && (
+                    <div className="p-3">
+                      <FavoriteCoins onSelectPair={setSelectedPair} selectedPair={selectedPair} />
+                    </div>
+                  )}
+                  {bottomTab === 'autotrade' && (
+                    <div className="p-3">
+                      <AutoTradePanel pair={selectedPair} strategy={strategy} onOpenSettings={() => navigate('/settings')} />
+                    </div>
+                  )}
+                  {bottomTab === 'prediction' && (
+                    <div className="p-3">
+                      <TimePredictionPanel symbol={selectedSymbol} />
+                    </div>
+                  )}
                   {bottomTab === 'orderbook' && <OrderBookPanel pair={selectedPair} />}
                   {bottomTab === 'trades' && <RecentTradesPanel pair={selectedPair} />}
                   {bottomTab === 'technical' && <TechnicalSummary pair={selectedPair} />}
@@ -202,13 +220,6 @@ export default function Dashboard() {
             </div>
 
             <IndodaxPortfolio />
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <FavoriteCoins onSelectPair={setSelectedPair} selectedPair={selectedPair} />
-              <AutoTradePanel pair={selectedPair} strategy={strategy} onOpenSettings={() => navigate('/settings')} />
-            </div>
-
-            <TimePredictionPanel symbol={selectedPair.replace('_idr', '').toUpperCase()} />
             <AutoTrading coins={allCoins} />
             <SimulationTrading coins={allCoins} />
             <TelegramCenter coins={allCoins} />

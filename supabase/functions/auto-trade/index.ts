@@ -256,7 +256,8 @@ serve(async (req) => {
 
       if (telegramToken && chatId) {
         const emoji = type === 'buy' ? '🟢 BUY' : '🔴 SELL';
-        const msg = `✅ ${emoji} <b>${symbol.toUpperCase()}/IDR</b>\n` +
+        const msg = `<b>🤖 GainzHalving</b>\n\n` +
+          `✅ ${emoji} <b>${symbol.toUpperCase()}/IDR</b>\n` +
           `💰 Harga: Rp ${Number(price).toLocaleString('id-ID')}\n` +
           `📊 Jumlah: ${amount.toFixed(8)}\n` +
           `💵 Total: Rp ${Math.floor(total).toLocaleString('id-ID')}\n` +
