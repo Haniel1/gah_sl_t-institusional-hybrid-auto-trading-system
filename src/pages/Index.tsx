@@ -39,7 +39,7 @@ export default function Dashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [view, setView] = useState<'chart' | 'dashboard'>('chart');
   const [strategyOpen, setStrategyOpen] = useState(false);
-  const [bottomTab, setBottomTab] = useState<'orderbook' | 'trades' | 'technical' | 'alerts' | 'ai'>('orderbook');
+  const [bottomTab, setBottomTab] = useState<'favorites' | 'autotrade' | 'prediction' | 'orderbook' | 'trades' | 'technical' | 'alerts' | 'ai'>('favorites');
   const [activeIndicator, setActiveIndicator] = useState<string | null>(null);
   const [customPineCode, setCustomPineCode] = useState('');
   const navigate = useNavigate();
