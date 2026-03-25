@@ -140,7 +140,22 @@ export default function Dashboard() {
                   ))}
                 </div>
 
-                <div className="h-[200px] sm:h-[250px] lg:h-[280px] overflow-hidden">
+                <div className="h-[250px] sm:h-[300px] lg:h-[350px] overflow-y-auto scrollbar-thin">
+                  {bottomTab === 'favorites' && (
+                    <div className="p-3">
+                      <FavoriteCoins onSelectPair={setSelectedPair} selectedPair={selectedPair} />
+                    </div>
+                  )}
+                  {bottomTab === 'autotrade' && (
+                    <div className="p-3">
+                      <AutoTradePanel pair={selectedPair} strategy={strategy} onOpenSettings={() => navigate('/settings')} />
+                    </div>
+                  )}
+                  {bottomTab === 'prediction' && (
+                    <div className="p-3">
+                      <TimePredictionPanel symbol={selectedSymbol} />
+                    </div>
+                  )}
                   {bottomTab === 'orderbook' && <OrderBookPanel pair={selectedPair} />}
                   {bottomTab === 'trades' && <RecentTradesPanel pair={selectedPair} />}
                   {bottomTab === 'technical' && <TechnicalSummary pair={selectedPair} />}
