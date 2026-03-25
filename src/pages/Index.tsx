@@ -220,13 +220,6 @@ export default function Dashboard() {
             </div>
 
             <IndodaxPortfolio />
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <FavoriteCoins onSelectPair={setSelectedPair} selectedPair={selectedPair} />
-              <AutoTradePanel pair={selectedPair} strategy={strategy} onOpenSettings={() => navigate('/settings')} />
-            </div>
-
-            <TimePredictionPanel symbol={selectedPair.replace('_idr', '').toUpperCase()} />
             <AutoTrading coins={allCoins} />
             <SimulationTrading coins={allCoins} />
             <TelegramCenter coins={allCoins} />
