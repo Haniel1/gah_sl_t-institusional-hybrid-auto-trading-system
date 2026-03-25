@@ -23,6 +23,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { IndicatorTemplateId } from '@/components/TradingChart';
 
 const BOTTOM_TABS = [
+  { id: 'favorites' as const, label: 'Favorit', icon: '⭐' },
+  { id: 'autotrade' as const, label: 'Auto Trade', icon: '🤖' },
+  { id: 'prediction' as const, label: 'Prediksi', icon: '🕐' },
   { id: 'orderbook' as const, label: 'Order Book', icon: '📊' },
   { id: 'trades' as const, label: 'Trades', icon: '⚡' },
   { id: 'technical' as const, label: 'Technical', icon: '📈' },
