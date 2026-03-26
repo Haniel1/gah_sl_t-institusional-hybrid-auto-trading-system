@@ -703,8 +703,10 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
     }
 
     // --- Indicator Template Overlays ---
-    // Remove old indicator series
-    for (const s of indicatorSeriesRefs.current) {
+    // Note: indicator series from strategies above are preserved (not cleaned here)
+    // Only clean series explicitly tracked as indicator template overlays
+    const prevIndicatorSeries = [...indicatorSeriesRefs.current];
+    for (const s of prevIndicatorSeries) {
       try { chartInstance.current?.removeSeries(s); } catch {}
     }
     indicatorSeriesRefs.current = [];
