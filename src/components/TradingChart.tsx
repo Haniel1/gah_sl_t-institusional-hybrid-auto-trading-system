@@ -1290,7 +1290,202 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
     }
 
 
-    markers.sort((a, b) => a.time - b.time);
+    // --- Support & Resistance Zones ---
+    if (indicatorTemplate === 'support-resistance') {
+      const srPeriod = 20;
+      const srLevels: { price: number; type: 'support' | 'resistance'; strength: number }[] = [];
+      
+      for (let i = srPeriod; i < candles.length - srPeriod; i++) {
+        let isPH = true, isPL = true;
+        for (let j = i - srPeriod; j <= i + srPeriod; j++) {
+          if (j === i) continue;
+          if (j < 0 || j >= candles.length) { isPH = false; isPL = false; break; }
+          if (highs[j] >= highs[i]) isPH = false;
+          if (lows[j] <= lows[i]) isPL = false;
+        }
+        if (isPH) srLevels.push({ price: highs[i], type: 'resistance', strength: 1 });
+        if (isPL) srLevels.push({ price: lows[i], type: 'support', strength: 1 });
+      }
+
+      // Cluster nearby levels
+      const clustered: typeof srLevels = [];
+      const atrVal = atr(candles, 14);
+      const threshold = atrVal[atrVal.length - 1] * 0.5;
+      for (const level of srLevels) {
+        const existing = clustered.find(c => Math.abs(c.price - level.price) < threshold);
+        if (existing) {
+          existing.strength++;
+          existing.price = (existing.price + level.price) / 2;
+        } else {
+          clustered.push({ ...level });
+        }
+      }
+
+      // Draw top 6 strongest levels
+      clustered.sort((a, b) => b.strength - a.strength);
+      const topLevels = clustered.slice(0, 6);
+      
+      for (const level of topLevels) {
+        const color = level.type === 'resistance' ? 'rgba(239, 68, 68, 0.6)' : 'rgba(34, 197, 94, 0.6)';
+        const s = chartInstance.current!.addSeries(LineSeries, {
+          color, lineWidth: 2, priceScaleId: 'right',
+          lastValueVisible: true, priceLineVisible: false,
+          lineType: LineType.Simple,
+        });
+        s.setData(candles.map(c => ({ time: c.time as any, value: level.price })));
+        indicatorSeriesRefs.current.push(s);
+
+        // Zone band (±0.3 ATR)
+        const bandColor = level.type === 'resistance' ? 'rgba(239, 68, 68, 0.08)' : 'rgba(34, 197, 94, 0.08)';
+        const bandS = chartInstance.current!.addSeries(HistogramSeries, {
+          priceScaleId: `sr-band-${level.price.toFixed(0)}`,
+          lastValueVisible: false, priceLineVisible: false,
+        });
+        bandS.setData(candles.map(c => ({
+          time: c.time as any,
+          value: level.price + (level.type === 'resistance' ? threshold * 0.3 : -threshold * 0.3),
+          color: bandColor,
+        })));
+        chartInstance.current?.priceScale(`sr-band-${level.price.toFixed(0)}`).applyOptions({
+          scaleMargins: { top: 0, bottom: 0 }, visible: false,
+        });
+        indicatorSeriesRefs.current.push(bandS);
+      }
+    }
+
+    // --- Volume Delta ---
+    if (indicatorTemplate === 'volume-delta') {
+      const deltaData = candles.map((c, i) => {
+        // Estimate buy/sell volume: if close > open, more buy pressure
+        const totalVol = c.volume;
+        const range = c.high - c.low;
+        const bodySize = Math.abs(c.close - c.open);
+        const ratio = range > 0 ? bodySize / range : 0.5;
+        const buyVol = c.close >= c.open ? totalVol * (0.5 + ratio * 0.5) : totalVol * (0.5 - ratio * 0.5);
+        const sellVol = totalVol - buyVol;
+        return buyVol - sellVol;
+      });
+
+      const deltaSeries = chartInstance.current!.addSeries(HistogramSeries, {
+        priceScaleId: 'vol-delta',
+        lastValueVisible: true, priceLineVisible: false,
+        priceFormat: { type: 'volume' },
+      });
+      deltaSeries.setData(candles.map((c, i) => ({
+        time: c.time as any,
+        value: deltaData[i],
+        color: deltaData[i] >= 0 ? 'rgba(34, 197, 94, 0.7)' : 'rgba(239, 68, 68, 0.7)',
+      })));
+      chartInstance.current?.priceScale('vol-delta').applyOptions({
+        scaleMargins: { top: 0.8, bottom: 0 },
+      });
+      indicatorSeriesRefs.current.push(deltaSeries);
+
+      // Cumulative delta line
+      const cumDelta: number[] = [];
+      let cum = 0;
+      for (const d of deltaData) { cum += d; cumDelta.push(cum); }
+      const cdSeries = chartInstance.current!.addSeries(LineSeries, {
+        color: '#eab308', lineWidth: 2, priceScaleId: 'vol-delta-cum',
+        lastValueVisible: true, priceLineVisible: false,
+      });
+      cdSeries.setData(candles.map((c, i) => ({ time: c.time as any, value: cumDelta[i] })));
+      chartInstance.current?.priceScale('vol-delta-cum').applyOptions({
+        scaleMargins: { top: 0.75, bottom: 0.05 },
+      });
+      indicatorSeriesRefs.current.push(cdSeries);
+    }
+
+    // --- Trading Sessions ---
+    if (indicatorTemplate === 'trading-sessions') {
+      const sessions = [
+        { name: 'Tokyo', tz: 'Asia/Tokyo', startH: 9, endH: 15, color: 'rgba(239, 68, 68, 0.08)' },
+        { name: 'Singapore', tz: 'Asia/Singapore', startH: 9, endH: 17, color: 'rgba(249, 115, 22, 0.06)' },
+        { name: 'Hong Kong', tz: 'Asia/Hong_Kong', startH: 9, endH: 16, color: 'rgba(234, 179, 8, 0.06)' },
+        { name: 'London', tz: 'Europe/London', startH: 8, endH: 16, color: 'rgba(59, 130, 246, 0.08)' },
+        { name: 'New York', tz: 'America/New_York', startH: 9, endH: 16, color: 'rgba(34, 197, 94, 0.08)' },
+        { name: 'Sydney', tz: 'Australia/Sydney', startH: 10, endH: 16, color: 'rgba(168, 85, 247, 0.06)' },
+      ];
+
+      for (const session of sessions) {
+        const bgData: any[] = [];
+        const sessionHighs: any[] = [];
+        let sessionHigh: number | null = null;
+        let sessionLow: number | null = null;
+        let prevInSession = false;
+
+        for (const candle of candles) {
+          let hour: number;
+          try {
+            const fmt = new Intl.DateTimeFormat('en-US', { timeZone: session.tz, hour: '2-digit', hour12: false });
+            const parts = fmt.formatToParts(new Date(candle.time * 1000));
+            hour = Number(parts.find(p => p.type === 'hour')?.value ?? '0');
+          } catch { hour = 0; }
+
+          const isInSession = hour >= session.startH && hour < session.endH;
+
+          if (isInSession && !prevInSession) {
+            sessionHigh = candle.high;
+            sessionLow = candle.low;
+          } else if (isInSession && sessionHigh !== null && sessionLow !== null) {
+            sessionHigh = Math.max(sessionHigh, candle.high);
+            sessionLow = Math.min(sessionLow, candle.low);
+          }
+
+          if (isInSession) {
+            bgData.push({ time: candle.time as any, value: Math.max(...highs) * 1.05, color: session.color });
+          }
+
+          prevInSession = isInSession;
+        }
+
+        if (bgData.length > 0) {
+          const scaleId = `session-${session.name}`;
+          const bgSeries = chartInstance.current!.addSeries(HistogramSeries, {
+            priceScaleId: scaleId, lastValueVisible: false, priceLineVisible: false,
+          });
+          bgSeries.setData(bgData);
+          chartInstance.current?.priceScale(scaleId).applyOptions({
+            scaleMargins: { top: 0, bottom: 0 }, visible: false,
+          });
+          indicatorSeriesRefs.current.push(bgSeries);
+        }
+      }
+
+      // Overlap: London & New York (13:00-16:00 UTC)
+      const overlapLN: any[] = [];
+      // Overlap: Tokyo & London (08:00-09:00 UTC roughly)
+      const overlapTL: any[] = [];
+
+      for (const candle of candles) {
+        const d = new Date(candle.time * 1000);
+        const utcH = d.getUTCHours();
+        if (utcH >= 13 && utcH < 17) {
+          overlapLN.push({ time: candle.time as any, value: Math.max(...highs) * 1.05, color: 'rgba(0, 255, 187, 0.12)' });
+        }
+        if (utcH >= 7 && utcH < 9) {
+          overlapTL.push({ time: candle.time as any, value: Math.max(...highs) * 1.05, color: 'rgba(255, 215, 0, 0.10)' });
+        }
+      }
+
+      if (overlapLN.length > 0) {
+        const s = chartInstance.current!.addSeries(HistogramSeries, {
+          priceScaleId: 'overlap-ln', lastValueVisible: false, priceLineVisible: false,
+        });
+        s.setData(overlapLN);
+        chartInstance.current?.priceScale('overlap-ln').applyOptions({ scaleMargins: { top: 0, bottom: 0 }, visible: false });
+        indicatorSeriesRefs.current.push(s);
+      }
+      if (overlapTL.length > 0) {
+        const s = chartInstance.current!.addSeries(HistogramSeries, {
+          priceScaleId: 'overlap-tl', lastValueVisible: false, priceLineVisible: false,
+        });
+        s.setData(overlapTL);
+        chartInstance.current?.priceScale('overlap-tl').applyOptions({ scaleMargins: { top: 0, bottom: 0 }, visible: false });
+        indicatorSeriesRefs.current.push(s);
+      }
+    }
+
     if (markersRef.current) {
       try { markersRef.current.detach(); } catch {}
       markersRef.current = null;
