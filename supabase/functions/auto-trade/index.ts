@@ -198,14 +198,16 @@ serve(async (req) => {
         const askPrice = await getOrderbookAskPrice(pairFormatted);
         const effectivePrice = askPrice || Number(price);
 
-        // === MARKET ORDER BUY: use total_idr ===
+        // === MARKET ORDER BUY: Indodax requires price param ===
+        // For market buy: set price to best ask, use idr amount
         const tradeParams: Record<string, string> = {
           pair: pairFormatted,
           type: 'buy',
-          total_idr: Math.floor(idrAmount).toString(),
+          price: Math.floor(effectivePrice).toString(),
+          idr: Math.floor(idrAmount).toString(),
         };
 
-        console.log(`[BUY] Market Order - pair: ${pairFormatted}, total_idr: ${idrAmount}, ask_price: ${askPrice}, last_price: ${price}`);
+        console.log(`[BUY] Market Order - pair: ${pairFormatted}, idr: ${idrAmount}, price: ${effectivePrice}, ask_price: ${askPrice}, last_price: ${price}`);
         tradeResult = await indodaxPrivateApi('trade', apiKey, secret, tradeParams);
 
         if (tradeResult?.success !== 1 && tradeResult?.return === undefined) {

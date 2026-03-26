@@ -105,6 +105,8 @@ export function useIndodaxCandles(pair: string, timeframe: string = '1h', lookba
     try {
       const symbol = pair.replace('_idr', '').toUpperCase() + 'IDR';
       const resolutionMap: Record<string, string> = {
+        '1m': '1',
+        '5m': '5',
         '15m': '15',
         '1h': '60',
         '4h': '240',
@@ -115,7 +117,11 @@ export function useIndodaxCandles(pair: string, timeframe: string = '1h', lookba
       const resolution = resolutionMap[timeframe] || '60';
       
       const now = Math.floor(Date.now() / 1000);
-      const intervalSec = timeframe === '15m'
+      const intervalSec = timeframe === '1m'
+        ? 60
+        : timeframe === '5m'
+        ? 300
+        : timeframe === '15m'
         ? 900
         : timeframe === '1h'
         ? 3600
