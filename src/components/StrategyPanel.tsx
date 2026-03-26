@@ -72,6 +72,21 @@ export const INDICATOR_TEMPLATES = [
     description: 'ZLEMA + band volatilitas ATR. Sinyal Bullish saat breakout band atas.',
     pineCode: `//@version=5\nindicator("Zero Lag Trend Signals", overlay=true)\nlength = input.int(70, "Length")\nmult = input.float(1.2, "Band Multiplier")\nsrc = close\nlag = math.floor((length - 1) / 2)\nzlema = ta.ema(src + (src - src[lag]), length)`,
   },
+  {
+    id: 'support-resistance', name: 'Support & Resistance Zones', category: 'Structure',
+    description: 'Menampilkan zona Support (hijau) dan Resistance (merah) berdasarkan Pivot High/Low clustering. Level diperbarui otomatis setiap timeframe.',
+    pineCode: '',
+  },
+  {
+    id: 'volume-delta', name: 'Volume Delta', category: 'Volume',
+    description: 'Menampilkan selisih volume beli vs jual per candle (histogram) dan Cumulative Volume Delta (garis kuning). Divergence = potensi reversal.',
+    pineCode: '',
+  },
+  {
+    id: 'trading-sessions', name: 'Trading Sessions', category: 'Sessions',
+    description: 'Menampilkan sesi trading: Asia (Tokyo, Singapore, HK), Eropa (London), Amerika (New York), Pasifik (Sydney), dan overlap London-NY & Tokyo-London.',
+    pineCode: '',
+  },
 ];
 
 interface StrategyPanelProps {
