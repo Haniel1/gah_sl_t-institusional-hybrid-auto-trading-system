@@ -310,6 +310,12 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
       chartInstance.current.timeScale().setVisibleLogicalRange({ from: fromIdx, to: lastIdx + 3 });
     }
 
+    // --- Clean old indicator/strategy overlays ---
+    for (const s of indicatorSeriesRefs.current) {
+      try { chartInstance.current?.removeSeries(s); } catch {}
+    }
+    indicatorSeriesRefs.current = [];
+
     // --- Add markers for signals ---
     const markers: any[] = [];
 
