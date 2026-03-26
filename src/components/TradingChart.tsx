@@ -708,14 +708,7 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
       }
     }
 
-    // --- Indicator Template Overlays ---
-    // Note: indicator series from strategies above are preserved (not cleaned here)
-    // Only clean series explicitly tracked as indicator template overlays
-    const prevIndicatorSeries = [...indicatorSeriesRefs.current];
-    for (const s of prevIndicatorSeries) {
-      try { chartInstance.current?.removeSeries(s); } catch {}
-    }
-    indicatorSeriesRefs.current = [];
+    // --- Indicator Template Overlays (stacked on top of strategy) ---
 
     const closes = candles.map(c => c.close);
     const highs = candles.map(c => c.high);
