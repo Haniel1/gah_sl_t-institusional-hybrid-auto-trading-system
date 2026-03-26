@@ -44,7 +44,7 @@ serve(async (req) => {
       const requestedFrom = Number(url.searchParams.get('from') || '0');
       const requestedTo = Number(url.searchParams.get('to') || `${Math.floor(Date.now() / 1000)}`);
 
-      const tfMap: Record<string, string> = { '15': '15', '60': '60', '240': '240', '1D': '1D', 'D': '1D', '1W': '1W', '1M': '1M' };
+      const tfMap: Record<string, string> = { '1': '1', '5': '5', '15': '15', '60': '60', '240': '240', '1D': '1D', 'D': '1D', '1W': '1W', '1M': '1M' };
       const tf = tfMap[resolution] || resolution;
       const nowSec = Math.floor(Date.now() / 1000);
       const safeTo = Math.min(requestedTo || nowSec, nowSec);
