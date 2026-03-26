@@ -295,7 +295,9 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
     // Set initial visible range to last 2 days only (once per data load / timeframe change)
     if (!initialRangeSetRef.current && chartInstance.current && candles.length > 0) {
       initialRangeSetRef.current = true;
-      const intervalSec = timeframe === '15m' ? 900
+      const intervalSec = timeframe === '1m' ? 60
+        : timeframe === '5m' ? 300
+        : timeframe === '15m' ? 900
         : timeframe === '4h' ? 14400
         : timeframe === '1d' ? 86400
         : timeframe === '1w' ? 604800
