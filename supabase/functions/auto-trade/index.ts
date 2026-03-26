@@ -210,8 +210,9 @@ serve(async (req) => {
           [symbol]: amountStr,
         };
 
-        console.log(`[BUY] Limit at Ask - pair: ${pairFormatted}, price: ${effectivePrice}, amount: ${amountStr}, idr: ${idrAmount}`);
+        console.log(`[BUY] Limit at Ask - pair: ${pairFormatted}, price: ${Math.floor(effectivePrice)}, amount: ${amountStr}, idr: ${idrAmount}`);
         tradeResult = await indodaxPrivateApi('trade', apiKey, secret, tradeParams);
+        console.log(`[BUY] Response:`, JSON.stringify(tradeResult));
 
         if (tradeResult?.success !== 1 && tradeResult?.return === undefined) {
           return new Response(JSON.stringify({
