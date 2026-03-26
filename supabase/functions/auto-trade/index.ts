@@ -198,16 +198,32 @@ serve(async (req) => {
         const askPrice = await getOrderbookAskPrice(pairFormatted);
         const effectivePrice = askPrice || Number(price);
 
-        // === MARKET ORDER BUY: Indodax requires price param ===
-        // For market buy: set price to best ask, use idr amount
-        const tradeParams: Record<string, string> = {
+        // === MARKET ORDER BUY ===
+        // Indodax market buy: no 'price' param, use 'idr' for total spend
+        // If market order fails, fallback to limit at ask price
+        let tradeParams: Record<string, string> = {
           pair: pairFormatted,
           type: 'buy',
-          price: Math.floor(effectivePrice).toString(),
           idr: Math.floor(idrAmount).toString(),
         };
 
-        console.log(`[BUY] Market Order - pair: ${pairFormatted}, idr: ${idrAmount}, price: ${effectivePrice}, ask_price: ${askPrice}, last_price: ${price}`);
+        console.log(`[BUY] Market Order attempt - pair: ${pairFormatted}, idr: ${idrAmount}, ask_price: ${askPrice}, last_price: ${price}`);
+        tradeResult = await indodaxPrivateApi('trade', apiKey, secret, tradeParams);
+
+        // Fallback: if market order fails (some pairs need price), use limit at ask
+        if (tradeResult?.success !== 1 && tradeResult?.return === undefined) {
+          console.log(`[BUY] Market failed, trying limit at ask: ${effectivePrice}`);
+          const amount = idrAmount / effectivePrice;
+          tradeParams = {
+            pair: pairFormatted,
+            type: 'buy',
+            price: Math.floor(effectivePrice).toString(),
+            [symbol]: amount.toFixed(8),
+          };
+          tradeResult = await indodaxPrivateApi('trade', apiKey, secret, tradeParams);
+        }
+
+        console.log(`[BUY] Result:`, JSON.stringify(tradeResult));
         tradeResult = await indodaxPrivateApi('trade', apiKey, secret, tradeParams);
 
         if (tradeResult?.success !== 1 && tradeResult?.return === undefined) {
