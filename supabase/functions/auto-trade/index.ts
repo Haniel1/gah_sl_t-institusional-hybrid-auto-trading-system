@@ -198,32 +198,19 @@ serve(async (req) => {
         const askPrice = await getOrderbookAskPrice(pairFormatted);
         const effectivePrice = askPrice || Number(price);
 
-        // === MARKET ORDER BUY ===
-        // Indodax market buy: no 'price' param, use 'idr' for total spend
-        // If market order fails, fallback to limit at ask price
-        let tradeParams: Record<string, string> = {
+        // === BUY: Limit order at best ask price (instant fill, acts as market order) ===
+        const amount = idrAmount / effectivePrice;
+        // Round amount to appropriate precision (no decimals for very cheap coins)
+        const amountStr = effectivePrice < 1 ? Math.floor(amount).toString() : amount.toFixed(8);
+        
+        const tradeParams: Record<string, string> = {
           pair: pairFormatted,
           type: 'buy',
-          idr: Math.floor(idrAmount).toString(),
+          price: Math.floor(effectivePrice).toString(),
+          [symbol]: amountStr,
         };
 
-        console.log(`[BUY] Market Order attempt - pair: ${pairFormatted}, idr: ${idrAmount}, ask_price: ${askPrice}, last_price: ${price}`);
-        tradeResult = await indodaxPrivateApi('trade', apiKey, secret, tradeParams);
-
-        // Fallback: if market order fails (some pairs need price), use limit at ask
-        if (tradeResult?.success !== 1 && tradeResult?.return === undefined) {
-          console.log(`[BUY] Market failed, trying limit at ask: ${effectivePrice}`);
-          const amount = idrAmount / effectivePrice;
-          tradeParams = {
-            pair: pairFormatted,
-            type: 'buy',
-            price: Math.floor(effectivePrice).toString(),
-            [symbol]: amount.toFixed(8),
-          };
-          tradeResult = await indodaxPrivateApi('trade', apiKey, secret, tradeParams);
-        }
-
-        console.log(`[BUY] Result:`, JSON.stringify(tradeResult));
+        console.log(`[BUY] Limit at Ask - pair: ${pairFormatted}, price: ${effectivePrice}, amount: ${amountStr}, idr: ${idrAmount}`);
         tradeResult = await indodaxPrivateApi('trade', apiKey, secret, tradeParams);
 
         if (tradeResult?.success !== 1 && tradeResult?.return === undefined) {
