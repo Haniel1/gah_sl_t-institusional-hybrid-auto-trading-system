@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { parsePineScript, computePineData } from '@/lib/pine-parser';
 
 export type ChartTypeId = 'candle' | 'bar' | 'hollow-candle' | 'candle-volume' | 'line' | 'line-markers' | 'step-line' | 'volume-footprint' | 'price-time' | 'session-vp' | 'heikin-ashi' | 'renko';
-export type IndicatorTemplateId = 'bill-williams-3lines' | 'displaced-ema' | 'ma-exp-ribbon' | 'oscillators' | 'swing-trading' | 'volume-based' | 'gainzalgo' | 'fabio' | 'custom-crt-overlay' | 'box-theory-pro' | 'zero-lag-trend' | 'custom-pine' | null;
+export type IndicatorTemplateId = 'bill-williams-3lines' | 'displaced-ema' | 'ma-exp-ribbon' | 'oscillators' | 'swing-trading' | 'volume-based' | 'gainzalgo' | 'fabio' | 'custom-crt-overlay' | 'box-theory-pro' | 'zero-lag-trend' | 'custom-pine' | 'support-resistance' | 'volume-delta' | 'trading-sessions' | null;
 
 interface TradingChartProps {
   pair: string;
