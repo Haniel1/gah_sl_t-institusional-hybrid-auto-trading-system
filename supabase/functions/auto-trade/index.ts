@@ -198,19 +198,15 @@ serve(async (req) => {
         const askPrice = await getOrderbookAskPrice(pairFormatted);
         const effectivePrice = askPrice || Number(price);
 
-        // === BUY: Limit order at best ask price (instant fill, acts as market order) ===
-        const amount = idrAmount / effectivePrice;
-        // Round amount to appropriate precision (no decimals for very cheap coins)
-        const amountStr = effectivePrice < 1 ? Math.floor(amount).toString() : amount.toFixed(8);
-        
+        // === BUY: Limit order at best ask price (acts as instant fill) ===
         const tradeParams: Record<string, string> = {
           pair: pairFormatted,
           type: 'buy',
           price: Math.floor(effectivePrice).toString(),
-          [symbol]: amountStr,
+          idr: Math.floor(idrAmount).toString(),
         };
 
-        console.log(`[BUY] Limit at Ask - pair: ${pairFormatted}, price: ${Math.floor(effectivePrice)}, amount: ${amountStr}, idr: ${idrAmount}`);
+        console.log(`[BUY] Limit at Ask - pair: ${pairFormatted}, price: ${Math.floor(effectivePrice)}, idr: ${Math.floor(idrAmount)}`);
         tradeResult = await indodaxPrivateApi('trade', apiKey, secret, tradeParams);
         console.log(`[BUY] Response:`, JSON.stringify(tradeResult));
 
