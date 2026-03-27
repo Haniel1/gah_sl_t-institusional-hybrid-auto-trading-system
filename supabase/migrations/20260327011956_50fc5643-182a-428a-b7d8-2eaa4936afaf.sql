@@ -1,0 +1,1 @@
+ALTER TABLE auto_trade_config ADD COLUMN IF NOT EXISTS highest_price_seen numeric DEFAULT NULL;

@@ -1,4 +1,4 @@
-// TradingChart v5 - with Pine Script parser support
+// TradingChart v5 - with Pine Script parser support + multi-strategy/indicator stacking
 import { useEffect, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, createSeriesMarkers, type IChartApi, ColorType, LineType } from 'lightweight-charts';
 import { useIndodaxCandles } from '@/hooks/useIndodax';
@@ -9,19 +9,18 @@ import { useAuth } from '@/contexts/AuthContext';
 import { parsePineScript, computePineData } from '@/lib/pine-parser';
 
 export type ChartTypeId = 'candle' | 'bar' | 'hollow-candle' | 'candle-volume' | 'line' | 'line-markers' | 'step-line' | 'volume-footprint' | 'price-time' | 'session-vp' | 'heikin-ashi' | 'renko';
-export type IndicatorTemplateId = 'bill-williams-3lines' | 'displaced-ema' | 'ma-exp-ribbon' | 'oscillators' | 'swing-trading' | 'volume-based' | 'gainzalgo' | 'fabio' | 'custom-crt-overlay' | 'box-theory-pro' | 'zero-lag-trend' | 'custom-pine' | 'support-resistance' | 'volume-delta' | 'trading-sessions' | null;
 
 interface TradingChartProps {
   pair: string;
-  strategy: string;
+  strategies: string[];
   chartType?: ChartTypeId;
-  indicatorTemplate?: IndicatorTemplateId;
+  activeIndicators?: string[];
   customPineCode?: string;
 }
 
 const TIMEFRAMES = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'];
 
-export default function TradingChart({ pair, strategy, chartType = 'candle', indicatorTemplate = null, customPineCode = '' }: TradingChartProps) {
+export default function TradingChart({ pair, strategies, chartType = 'candle', activeIndicators = [], customPineCode = '' }: TradingChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const oscRef = useRef<HTMLDivElement>(null);
   const stochRef = useRef<HTMLDivElement>(null);
@@ -41,7 +40,7 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
   const userInteractingRef = useRef(false);
   const interactTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialRangeSetRef = useRef(false);
-  const lookbackCandles = strategy === 'halving'
+  const lookbackCandles = strategies.includes('halving')
     ? timeframe === '1M'
       ? 240
       : timeframe === '1w'
@@ -51,17 +50,14 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
   const { candles, loading, setPaused } = useIndodaxCandles(pair, timeframe, lookbackCandles);
 
   const { user } = useAuth();
-  // Send Telegram notification on new signals
-  useSignalNotifier(pair, strategy, candles, user?.id);
+  useSignalNotifier(pair, strategies[0] || 'none', candles, user?.id);
 
-  // Halving strategy needs higher timeframe to match TradingView cycle view
   useEffect(() => {
-    if (strategy === 'halving' && !['1d', '1w', '1M'].includes(timeframe)) {
+    if (strategies.includes('halving') && !['1d', '1w', '1M'].includes(timeframe)) {
       setTimeframe('1d');
     }
-    // Reset initial range flag when timeframe or pair changes
     initialRangeSetRef.current = false;
-  }, [strategy, timeframe, pair]);
+  }, [strategies, timeframe, pair]);
 
   // Main chart - recreate when chartType changes
   useEffect(() => {
@@ -216,7 +212,7 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
 
   // Oscillator chart for GainzAlgo
   useEffect(() => {
-    if (!oscRef.current || strategy !== 'gainzalgo') return;
+    if (!oscRef.current || !strategies.includes('gainzalgo')) return;
 
     const oscChart = createChart(oscRef.current, {
       layout: {
@@ -256,7 +252,7 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
       oscChart.remove();
       oscChartInstance.current = null;
     };
-  }, [strategy]);
+  }, [strategies]);
 
   // Update data & indicators
   useEffect(() => {
@@ -292,7 +288,7 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
     }));
     volumeSeriesRef.current.setData(volData);
 
-    // Set initial visible range to last 2 days only (once per data load / timeframe change)
+    // Set initial visible range
     if (!initialRangeSetRef.current && chartInstance.current && candles.length > 0) {
       initialRangeSetRef.current = true;
       const intervalSec = timeframe === '1m' ? 60
@@ -302,7 +298,7 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
         : timeframe === '1d' ? 86400
         : timeframe === '1w' ? 604800
         : timeframe === '1M' ? 2592000
-        : 3600; // default 1h
+        : 3600;
       const twoDaysSec = 2 * 24 * 3600;
       const visibleCandles = Math.ceil(twoDaysSec / intervalSec);
       const lastIdx = candles.length - 1;
@@ -325,7 +321,26 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
     }
     halvingSeriesRefs.current = [];
 
-    if (strategy === 'gainzalgo') {
+    // Helper arrays
+    const closes = candles.map(c => c.close);
+    const highs = candles.map(c => c.high);
+    const lows = candles.map(c => c.low);
+    const volumes = candles.map(c => c.volume);
+
+    // ═══════════════════════════════════════════════════
+    // STRATEGIES (independent if blocks - stackable)
+    // ═══════════════════════════════════════════════════
+
+    if (strategies.includes('swing-trading')) {
+      for (let i = 5; i < candles.length - 5; i++) {
+        const isHigh = highs.slice(i - 5, i).every(h => h <= highs[i]) && highs.slice(i + 1, i + 6).every(h => h <= highs[i]);
+        const isLow = lows.slice(i - 5, i).every(l => l >= lows[i]) && lows.slice(i + 1, i + 6).every(l => l >= lows[i]);
+        if (isHigh) markers.push({ time: candles[i].time, position: 'aboveBar', color: '#ef4444', shape: 'arrowDown', text: 'Swing H' });
+        if (isLow) markers.push({ time: candles[i].time, position: 'belowBar', color: '#22c55e', shape: 'arrowUp', text: 'Swing L' });
+      }
+    }
+
+    if (strategies.includes('gainzalgo')) {
       const signals = calculateGainzAlgo(candles);
       for (const s of signals) {
         markers.push({
@@ -339,7 +354,6 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
 
       // Momentum oscillator sub-chart
       if (oscChartInstance.current) {
-        const closes = candles.map(c => c.close);
         const emaFast = ema(closes, 12);
         const emaSlow = ema(closes, 26);
         const momentum = emaFast.map((f, i) => f - emaSlow[i]);
@@ -377,7 +391,9 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
 
         oscChartInstance.current.timeScale().fitContent();
       }
-    } else if (strategy === 'fabio') {
+    }
+
+    if (strategies.includes('fabio')) {
       const signals = calculateFabioValentini(candles);
       for (const s of signals) {
         markers.push({
@@ -388,7 +404,9 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
           text: s.type === 'buy' ? `BUY (POC:${s.poc.toFixed(0)})` : `SELL (POC:${s.poc.toFixed(0)})`,
         });
       }
-    } else if (strategy === 'crt') {
+    }
+
+    if (strategies.includes('crt')) {
       const signals = calculateCRTOverlay(candles);
       for (const s of signals) {
         markers.push({
@@ -401,7 +419,9 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
             : `SELL (CRT:${s.crtHigh.toFixed(0)})`,
         });
       }
-    } else if (strategy === 'poi') {
+    }
+
+    if (strategies.includes('poi')) {
       const signals = calculatePOIStrategy(candles);
       for (const s of signals) {
         const label = s.poiType === 'fvg' ? 'FVG' : 'OB';
@@ -413,7 +433,9 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
           text: `${s.type.toUpperCase()} (${label})`,
         });
       }
-    } else if (strategy === 'balance') {
+    }
+
+    if (strategies.includes('balance')) {
       const signals = calculateBalanceArea(candles);
       for (const s of signals) {
         markers.push({
@@ -424,7 +446,9 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
           text: `${s.type.toUpperCase()} (Breakout ${s.breakoutStrength.toFixed(1)}x)`,
         });
       }
-    } else if (strategy === 'multitf') {
+    }
+
+    if (strategies.includes('multitf')) {
       const signals = calculateMultiTFSR(candles);
       for (const s of signals) {
         const bos = s.bosConfirmed ? '✓BOS' : '';
@@ -436,7 +460,9 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
           text: `${s.type.toUpperCase()} S/R:${s.keyLevel.toFixed(0)} ${bos}`,
         });
       }
-    } else if (strategy === 'darvas') {
+    }
+
+    if (strategies.includes('darvas')) {
       const signals = calculateDarvasBox(candles);
       for (const s of signals) {
         markers.push({
@@ -447,7 +473,9 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
           text: `${s.type.toUpperCase()} Box(${s.boxTop.toFixed(0)}-${s.boxBottom.toFixed(0)}) Vol:${s.volumeRatio.toFixed(1)}x`,
         });
       }
-    } else if (strategy === 'trendlines-breaks') {
+    }
+
+    if (strategies.includes('trendlines-breaks')) {
       // LuxAlgo Trendlines with Breaks — native implementation
       const tbCloses = candles.map(c => c.close);
       const tbHighs = candles.map(c => c.high);
@@ -528,7 +556,9 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
       for (const b of lowerBreakData) {
         markers.push({ time: b.time, position: 'aboveBar', color: '#ef4444', shape: 'arrowDown', text: 'B↓ Break' });
       }
-    } else if (strategy === 'trama') {
+    }
+
+    if (strategies.includes('trama')) {
       // LuxAlgo TRAMA — Trend Regularity Adaptive Moving Average
       const tramaLength = 99;
       const tramaHighs = candles.map(c => c.high);
@@ -569,8 +599,9 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
           markers.push({ time: candles[i].time, position: 'aboveBar', color: '#ef4444', shape: 'arrowDown', text: 'TRAMA ▼' });
         }
       }
-    } else if (strategy === 'rsi-panel') {
-      // RSI overbought/oversold markers on chart; RSI line rendered in sub-panel
+    }
+
+    if (strategies.includes('rsi-panel')) {
       const rsiCloses = candles.map(c => c.close);
       const rsiVals = rsi(rsiCloses, 14);
       for (let i = 1; i < candles.length; i++) {
@@ -581,8 +612,9 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
           markers.push({ time: candles[i].time, position: 'aboveBar', color: '#ef4444', shape: 'arrowDown', text: 'RSI Overbought' });
         }
       }
-    } else if (strategy === 'halving') {
+    }
 
+    if (strategies.includes('halving')) {
       const priceMax = Math.max(...candles.map(c => c.high));
       const minTime = candles[0]?.time ?? 0;
       const maxTime = candles[candles.length - 1]?.time ?? 0;
@@ -708,14 +740,11 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
       }
     }
 
-    // --- Indicator Template Overlays (stacked on top of strategy) ---
+    // ═══════════════════════════════════════════════════
+    // INDICATOR TEMPLATES (independent if blocks - stackable)
+    // ═══════════════════════════════════════════════════
 
-    const closes = candles.map(c => c.close);
-    const highs = candles.map(c => c.high);
-    const lows = candles.map(c => c.low);
-    const volumes = candles.map(c => c.volume);
-
-    if (indicatorTemplate === 'bill-williams-3lines') {
+    if (activeIndicators.includes('bill-williams-3lines')) {
       const jaw = sma(closes, 13);
       const teeth = sma(closes, 8);
       const lips = sma(closes, 5);
@@ -729,7 +758,9 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
         s.setData(candles.map((c, i) => ({ time: c.time as any, value: data[i] })));
         indicatorSeriesRefs.current.push(s);
       });
-    } else if (indicatorTemplate === 'displaced-ema') {
+    }
+
+    if (activeIndicators.includes('displaced-ema')) {
       const emaData = ema(closes, 20);
       const displacement = 5;
       const displaced = candles.slice(0, candles.length - displacement).map((_, i) => ({
@@ -742,7 +773,9 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
       });
       s.setData(displaced);
       indicatorSeriesRefs.current.push(s);
-    } else if (indicatorTemplate === 'ma-exp-ribbon') {
+    }
+
+    if (activeIndicators.includes('ma-exp-ribbon')) {
       const periods = [8, 13, 21, 34, 55, 89];
       const colors = ['#84cc16', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ef4444'];
       periods.forEach((p, idx) => {
@@ -754,22 +787,24 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
         s.setData(candles.map((c, i) => ({ time: c.time as any, value: data[i] })));
         indicatorSeriesRefs.current.push(s);
       });
-    } else if (indicatorTemplate === 'oscillators') {
-      // Oscillators rendered in separate sub-charts (see useEffect below)
-      // No overlay on main chart
-    } else if (indicatorTemplate === 'swing-trading') {
-      // Pivot points as markers
+    }
+
+    if (activeIndicators.includes('oscillators')) {
+      // Oscillators rendered in separate sub-charts
+    }
+
+    if (activeIndicators.includes('swing-trading-ind')) {
       for (let i = 5; i < candles.length - 5; i++) {
         const isHigh = highs.slice(i - 5, i).every(h => h <= highs[i]) && highs.slice(i + 1, i + 6).every(h => h <= highs[i]);
         const isLow = lows.slice(i - 5, i).every(l => l >= lows[i]) && lows.slice(i + 1, i + 6).every(l => l >= lows[i]);
         if (isHigh) markers.push({ time: candles[i].time, position: 'aboveBar', color: '#ef4444', shape: 'circle', text: 'SH' });
         if (isLow) markers.push({ time: candles[i].time, position: 'belowBar', color: '#22c55e', shape: 'circle', text: 'SL' });
       }
-    } else if (indicatorTemplate === 'volume-based') {
-      // Volume MA overlay
+    }
+
+    if (activeIndicators.includes('volume-based')) {
       const volMA = sma(volumes, 20);
       const volRatio = volumes.map((v, i) => volMA[i] > 0 ? v / volMA[i] : 1);
-      // Highlight high volume bars
       for (let i = 0; i < candles.length; i++) {
         if (volRatio[i] > 2) {
           markers.push({
@@ -778,8 +813,9 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
           });
         }
       }
-    } else if (indicatorTemplate === 'gainzalgo') {
-      // EMA 12 & 26 overlay lines
+    }
+
+    if (activeIndicators.includes('gainzalgo')) {
       const ema12 = ema(closes, 12);
       const ema26 = ema(closes, 26);
       const s1 = chartInstance.current!.addSeries(LineSeries, {
@@ -794,7 +830,9 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
       });
       s2.setData(candles.map((c, i) => ({ time: c.time as any, value: ema26[i] })));
       indicatorSeriesRefs.current.push(s2);
-    } else if (indicatorTemplate === 'fabio') {
+    }
+
+    if (activeIndicators.includes('fabio')) {
       // Volume Profile approximation overlay (POC, VAH, VAL)
       const vwapData = vwap(candles);
       const atrData = atr(candles, 14);
@@ -816,7 +854,9 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
       });
       valSeries.setData(candles.map((c, i) => ({ time: c.time as any, value: vwapData[i] - atrData[i] * 0.5 })));
       indicatorSeriesRefs.current.push(valSeries);
-    } else if (indicatorTemplate === 'custom-crt-overlay') {
+    }
+
+    if (activeIndicators.includes('custom-crt-overlay')) {
       // Native approximation for script: "Custom CRT Overlay Style"
       const nyFormatter = new Intl.DateTimeFormat('en-US', {
         timeZone: 'America/New_York',
@@ -908,7 +948,9 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
       });
 
       indicatorSeriesRefs.current.push(highSeries, lowSeries, midSeries, bgSeries);
-    } else if (indicatorTemplate === 'box-theory-pro') {
+    }
+
+    if (activeIndicators.includes('box-theory-pro')) {
       // Native approximation for "Box Theory Pro [Interactive Zones]"
       // Uses pivot highs/lows to define a range box with premium/discount zones
       const leftLen = 20;
@@ -1047,7 +1089,9 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
           }
         }
       }
-    } else if (indicatorTemplate === 'zero-lag-trend') {
+    }
+
+    if (activeIndicators.includes('zero-lag-trend')) {
       // Zero Lag Trend Signals (AlgoAlpha) - native implementation
       const length = 70;
       const bandMult = 1.2;
@@ -1140,7 +1184,9 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
           });
         }
       }
-    } else if (indicatorTemplate === 'custom-pine' && customPineCode) {
+    }
+
+    if (activeIndicators.includes('custom-pine') && customPineCode) {
       // Parse and render arbitrary Pine Script
       try {
         const parsed = parsePineScript(customPineCode);
@@ -1289,9 +1335,8 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
       }
     }
 
-
     // --- Support & Resistance Zones ---
-    if (indicatorTemplate === 'support-resistance') {
+    if (activeIndicators.includes('support-resistance')) {
       const srPeriod = 20;
       const srLevels: { price: number; type: 'support' | 'resistance'; strength: number }[] = [];
       
@@ -1354,7 +1399,7 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
     }
 
     // --- Volume Delta ---
-    if (indicatorTemplate === 'volume-delta') {
+    if (activeIndicators.includes('volume-delta')) {
       const deltaData = candles.map((c, i) => {
         // Estimate buy/sell volume: if close > open, more buy pressure
         const totalVol = c.volume;
@@ -1397,7 +1442,7 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
     }
 
     // --- Trading Sessions ---
-    if (indicatorTemplate === 'trading-sessions') {
+    if (activeIndicators.includes('trading-sessions')) {
       const sessions = [
         { name: 'Tokyo', tz: 'Asia/Tokyo', startH: 9, endH: 15, color: 'rgba(239, 68, 68, 0.08)' },
         { name: 'Singapore', tz: 'Asia/Singapore', startH: 9, endH: 17, color: 'rgba(249, 115, 22, 0.06)' },
@@ -1495,11 +1540,11 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
     }
 
     chartInstance.current?.timeScale().fitContent();
-  }, [candles, strategy, chartType, indicatorTemplate, customPineCode]);
+  }, [candles, strategies, chartType, activeIndicators, customPineCode]);
 
   // Stochastic sub-chart for oscillators template
   useEffect(() => {
-    if (indicatorTemplate !== 'oscillators' || !stochRef.current) {
+    if (!activeIndicators.includes('oscillators') || !stochRef.current) {
       if (stochChartInstance.current) { stochChartInstance.current.remove(); stochChartInstance.current = null; }
       return;
     }
@@ -1517,11 +1562,11 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
     const handleResize = () => { if (stochRef.current) chart.applyOptions({ width: stochRef.current.clientWidth, height: stochRef.current.clientHeight }); };
     window.addEventListener('resize', handleResize);
     return () => { window.removeEventListener('resize', handleResize); chart.remove(); stochChartInstance.current = null; };
-  }, [indicatorTemplate]);
+  }, [activeIndicators]);
 
   // RSI sub-chart for oscillators template
   useEffect(() => {
-    if (indicatorTemplate !== 'oscillators' || !rsiRef.current) {
+    if (!activeIndicators.includes('oscillators') || !rsiRef.current) {
       if (rsiChartInstance.current) { rsiChartInstance.current.remove(); rsiChartInstance.current = null; }
       return;
     }
@@ -1539,23 +1584,22 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
     const handleResize = () => { if (rsiRef.current) chart.applyOptions({ width: rsiRef.current.clientWidth, height: rsiRef.current.clientHeight }); };
     window.addEventListener('resize', handleResize);
     return () => { window.removeEventListener('resize', handleResize); chart.remove(); rsiChartInstance.current = null; };
-  }, [indicatorTemplate]);
+  }, [activeIndicators]);
 
   // Populate oscillator sub-charts data
   useEffect(() => {
-    if (indicatorTemplate !== 'oscillators' || candles.length === 0) return;
+    if (!activeIndicators.includes('oscillators') || candles.length === 0) return;
 
-    const closes = candles.map(c => c.close);
-    const highs = candles.map(c => c.high);
-    const lows = candles.map(c => c.low);
+    const oscCloses = candles.map(c => c.close);
+    const oscHighs = candles.map(c => c.high);
+    const oscLows = candles.map(c => c.low);
 
     // Stochastic
     if (stochChartInstance.current) {
       const chart = stochChartInstance.current;
-      // Remove old series
       try { (chart as any).__series?.forEach((s: any) => chart.removeSeries(s)); } catch {}
 
-      const kData = stochasticK(closes, highs, lows, 14);
+      const kData = stochasticK(oscCloses, oscHighs, oscLows, 14);
       const dData = sma(kData, 3);
 
       // Zone fill (25-75 purple area)
@@ -1589,7 +1633,7 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
       const chart = rsiChartInstance.current;
       try { (chart as any).__series?.forEach((s: any) => chart.removeSeries(s)); } catch {}
 
-      const rsiData = rsi(closes, 14);
+      const rsiData = rsi(oscCloses, 14);
       const rsiMA = sma(rsiData, 14);
 
       const rsiSeries = chart.addSeries(LineSeries, {
@@ -1607,11 +1651,11 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
       (chart as any).__series = [rsiSeries, rsiMASeries];
       chart.timeScale().fitContent();
     }
-  }, [candles, indicatorTemplate]);
+  }, [candles, activeIndicators]);
 
   // RSI sub-chart for rsi-panel strategy
   useEffect(() => {
-    if (strategy !== 'rsi-panel' || !rsiPanelRef.current) {
+    if (!strategies.includes('rsi-panel') || !rsiPanelRef.current) {
       if (rsiPanelChartInstance.current) { rsiPanelChartInstance.current.remove(); rsiPanelChartInstance.current = null; }
       return;
     }
@@ -1627,11 +1671,11 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
     const ro = new ResizeObserver(() => { if (rsiPanelRef.current) chart.applyOptions({ width: rsiPanelRef.current.clientWidth, height: rsiPanelRef.current.clientHeight }); });
     if (rsiPanelRef.current) ro.observe(rsiPanelRef.current);
     return () => { ro.disconnect(); chart.remove(); rsiPanelChartInstance.current = null; };
-  }, [strategy]);
+  }, [strategies]);
 
   // Populate RSI panel data
   useEffect(() => {
-    if (strategy !== 'rsi-panel' || !rsiPanelChartInstance.current || candles.length === 0) return;
+    if (!strategies.includes('rsi-panel') || !rsiPanelChartInstance.current || candles.length === 0) return;
     const chart = rsiPanelChartInstance.current;
     try { (chart as any).__rsiSeries?.forEach((s: any) => chart.removeSeries(s)); } catch {}
     const rsiCloses = candles.map(c => c.close);
@@ -1663,40 +1707,45 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
 
     (chart as any).__rsiSeries = [zoneSeries, rsiLine, rsiMaLine, ob, os];
     chart.timeScale().fitContent();
-  }, [candles, strategy]);
+  }, [candles, strategies]);
 
   const symbol = pair.replace('_idr', '').toUpperCase();
 
   // Compute last signal for toolbar
   const getLastSignal = () => {
     if (candles.length === 0) return null;
-    let signals: { type: string; time: number }[] = [];
-    switch (strategy) {
-      case 'gainzalgo': signals = calculateGainzAlgo(candles); break;
-      case 'fabio': signals = calculateFabioValentini(candles); break;
-      case 'crt': signals = calculateCRTOverlay(candles); break;
-      case 'poi': signals = calculatePOIStrategy(candles); break;
-      case 'balance': signals = calculateBalanceArea(candles); break;
-      case 'multitf': signals = calculateMultiTFSR(candles); break;
-      case 'darvas': signals = calculateDarvasBox(candles); break;
-      default: return null;
+    let allSignals: { type: string; time: number }[] = [];
+    for (const strat of strategies) {
+      let signals: { type: string; time: number }[] = [];
+      switch (strat) {
+        case 'gainzalgo': signals = calculateGainzAlgo(candles); break;
+        case 'fabio': signals = calculateFabioValentini(candles); break;
+        case 'crt': signals = calculateCRTOverlay(candles); break;
+        case 'poi': signals = calculatePOIStrategy(candles); break;
+        case 'balance': signals = calculateBalanceArea(candles); break;
+        case 'multitf': signals = calculateMultiTFSR(candles); break;
+        case 'darvas': signals = calculateDarvasBox(candles); break;
+      }
+      allSignals = allSignals.concat(signals);
     }
-    return signals.length > 0 ? signals[signals.length - 1] : null;
+    if (allSignals.length === 0) return null;
+    allSignals.sort((a, b) => a.time - b.time);
+    return allSignals[allSignals.length - 1];
   };
 
   const lastSignal = getLastSignal();
-  const halvingPhase = strategy === 'halving' ? getCurrentHalvingPhase() : null;
+  const halvingPhase = strategies.includes('halving') ? getCurrentHalvingPhase() : null;
 
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="flex items-center gap-1 px-3 py-2 border-b border-border">
-        <span className="font-mono font-bold text-sm text-foreground mr-3">{symbol}/IDR</span>
+      <div className="flex items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-1.5 sm:py-2 border-b border-border overflow-x-auto">
+        <span className="font-mono font-bold text-xs sm:text-sm text-foreground mr-1 sm:mr-3 shrink-0">{symbol}/IDR</span>
         {TIMEFRAMES.map(tf => (
           <button
             key={tf}
             onClick={() => setTimeframe(tf)}
-            className={`px-2.5 py-1 text-xs font-mono rounded transition-colors ${
+            className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 text-[10px] sm:text-xs font-mono rounded transition-colors shrink-0 ${
               timeframe === tf
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -1707,28 +1756,28 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
         ))}
 
         {halvingPhase && (
-          <div className="ml-auto flex items-center gap-1.5 text-xs font-mono" style={{ color: halvingPhase.color }}>
+          <div className="ml-auto flex items-center gap-1.5 text-[10px] sm:text-xs font-mono shrink-0" style={{ color: halvingPhase.color }}>
             <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: halvingPhase.color }} />
-            {halvingPhase.phase} • {halvingPhase.weeksPost}w post-halving
+            <span className="hidden sm:inline">{halvingPhase.phase} • {halvingPhase.weeksPost}w post-halving</span>
           </div>
         )}
 
         {lastSignal && (
-          <div className={`${halvingPhase ? '' : 'ml-auto'} flex items-center gap-1.5 text-xs font-mono ${lastSignal.type === 'buy' ? 'text-profit' : 'text-loss'}`}>
+          <div className={`${halvingPhase ? '' : 'ml-auto'} flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-mono shrink-0 ${lastSignal.type === 'buy' ? 'text-profit' : 'text-loss'}`}>
             <div className={`w-1.5 h-1.5 rounded-full ${lastSignal.type === 'buy' ? 'bg-profit' : 'bg-loss'} animate-pulse`} />
-            Last Signal: {lastSignal.type.toUpperCase()}
+            <span className="hidden sm:inline">Last Signal:</span> {lastSignal.type.toUpperCase()}
           </div>
         )}
         {loading && (
-          <div className={`${lastSignal || halvingPhase ? '' : 'ml-auto'} flex items-center gap-1.5 text-xs text-muted-foreground`}>
+          <div className={`${lastSignal || halvingPhase ? '' : 'ml-auto'} flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground shrink-0`}>
             <div className="w-1.5 h-1.5 rounded-full bg-terminal-yellow animate-pulse" />
-            Loading...
+            <span className="hidden sm:inline">Loading...</span>
           </div>
         )}
       </div>
 
       {/* Main Chart */}
-      <div className="relative" style={{ flex: (strategy === 'gainzalgo' || indicatorTemplate === 'oscillators' || strategy === 'rsi-panel') ? '3 1 0' : '1 1 0' }}>
+      <div className="relative" style={{ flex: (strategies.includes('gainzalgo') || activeIndicators.includes('oscillators') || strategies.includes('rsi-panel')) ? '3 1 0' : '1 1 0' }}>
         <div ref={chartRef} className="w-full h-full" />
         {!loading && candles.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/80">
@@ -1742,7 +1791,7 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
       </div>
 
       {/* GainzAlgo Oscillator Sub-Panel */}
-      {strategy === 'gainzalgo' && (
+      {strategies.includes('gainzalgo') && (
         <>
           <div className="px-3 py-1 border-y border-border text-[10px] font-mono text-muted-foreground flex items-center gap-2">
             <span className="text-foreground font-semibold">DLO</span>
@@ -1755,7 +1804,7 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
       )}
 
       {/* RSI Panel Sub-chart */}
-      {strategy === 'rsi-panel' && (
+      {strategies.includes('rsi-panel') && (
         <>
           <div className="px-3 py-1 border-y border-border text-[10px] font-mono text-muted-foreground flex items-center gap-2">
             <span className="text-foreground font-semibold">RSI</span>
@@ -1769,7 +1818,7 @@ export default function TradingChart({ pair, strategy, chartType = 'candle', ind
       )}
 
       {/* Oscillator Template Sub-Panels */}
-      {indicatorTemplate === 'oscillators' && (
+      {activeIndicators.includes('oscillators') && (
         <>
           <div className="px-3 py-1 border-y border-border text-[10px] font-mono text-muted-foreground flex items-center gap-2">
             <span className="text-foreground font-semibold">Stochastic</span>

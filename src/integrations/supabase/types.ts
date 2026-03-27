@@ -50,6 +50,7 @@ export type Database = {
           entry_time: string | null
           fabio_buy_signal: boolean
           gainz_buy_signal: boolean
+          highest_price_seen: number | null
           id: string
           initial_balance: number
           initial_capital: number
@@ -80,6 +81,7 @@ export type Database = {
           entry_time?: string | null
           fabio_buy_signal?: boolean
           gainz_buy_signal?: boolean
+          highest_price_seen?: number | null
           id?: string
           initial_balance?: number
           initial_capital?: number
@@ -110,6 +112,7 @@ export type Database = {
           entry_time?: string | null
           fabio_buy_signal?: boolean
           gainz_buy_signal?: boolean
+          highest_price_seen?: number | null
           id?: string
           initial_balance?: number
           initial_capital?: number
