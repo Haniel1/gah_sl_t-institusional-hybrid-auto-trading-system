@@ -230,6 +230,7 @@ serve(async (req) => {
           current_capital: newCapital, current_balance: newCapital,
           entry_price: effectivePrice, entry_time: new Date().toISOString(),
           status: 'holding', position: 'long', last_trade_at: new Date().toISOString(),
+          highest_price_seen: effectivePrice,
         }).eq('id', config.id);
 
         // Log trade
@@ -272,7 +273,20 @@ serve(async (req) => {
         const currentPrice = Number(price);
         const entryPrice = config.entry_price || currentPrice;
         const grossProfitPct = ((currentPrice - entryPrice) / entryPrice) * 100;
-        const isStopLoss = reason === 'stop_loss' || (currentPrice <= entryPrice * 0.98);
+
+        // Update highest_price_seen for trailing stop
+        const prevHighest = config.highest_price_seen || entryPrice;
+        if (currentPrice > prevHighest) {
+          await supabase.from('auto_trade_config').update({ highest_price_seen: currentPrice }).eq('id', config.id);
+          config.highest_price_seen = currentPrice;
+        }
+        const highestSeen = config.highest_price_seen || entryPrice;
+        const dropFromHighest = highestSeen > 0 ? ((highestSeen - currentPrice) / highestSeen) * 100 : 0;
+
+        // Dynamic Trailing Stop: activate at 2% profit, callback 1.5%
+        const isTrailingStop = grossProfitPct >= 2.0 && dropFromHighest >= 1.5;
+        const isHardStopLoss = reason === 'stop_loss' || (currentPrice <= entryPrice * 0.98);
+        const isStopLoss = isHardStopLoss || isTrailingStop;
 
         let sellOrderType = '';
 
@@ -285,7 +299,7 @@ serve(async (req) => {
           };
           console.log(`[SELL] STOP LOSS Market Order - pair: ${pairFormatted}, amount: ${coinBalance}, price: ${currentPrice}, entry: ${entryPrice}`);
           tradeResult = await indodaxPrivateApi('trade', apiKey, secret, tradeParams);
-          sellOrderType = 'market_sell_stoploss';
+          sellOrderType = isTrailingStop ? 'market_sell_trailing' : 'market_sell_stoploss';
         } else {
           // === TAKE PROFIT: check min 1% gross profit ===
           if (grossProfitPct < 1.0) {
@@ -331,7 +345,7 @@ serve(async (req) => {
           total_pnl: newTotalPnl,
           win_count: (config.win_count || 0) + (profitLoss > 0 ? 1 : 0),
           loss_count: (config.loss_count || 0) + (profitLoss <= 0 ? 1 : 0),
-          entry_price: null, entry_time: null,
+          entry_price: null, entry_time: null, highest_price_seen: null,
           status: 'idle', position: 'none', last_trade_at: new Date().toISOString(),
         }).eq('id', config.id);
 
@@ -341,7 +355,7 @@ serve(async (req) => {
         });
 
         if (telegramToken && chatId) {
-          const typeLabel = isStopLoss ? '🔴 STOP LOSS (MARKET SELL)' : '🟡 TAKE PROFIT (LIMIT SELL)';
+          const typeLabel = isTrailingStop ? '🟠 TRAILING STOP (MARKET SELL)' : isHardStopLoss ? '🔴 STOP LOSS (MARKET SELL)' : '🟡 TAKE PROFIT (LIMIT SELL)';
           const msg = `<b>${APP_NAME}</b>\n\n` +
             `${typeLabel} <b>${symbol.toUpperCase()}/IDR</b>\n` +
             `💰 Harga: Rp ${currentPrice.toLocaleString('id-ID')}\n` +
