@@ -401,7 +401,11 @@ export type Database = {
           indodax_secret: string | null
           is_active: boolean | null
           name: string
+          okx_api_key: string | null
+          okx_passphrase: string | null
+          okx_secret: string | null
           password_hash: string
+          platform: string
           telegram_bot_token: string | null
           telegram_chat_id: string | null
           updated_at: string | null
@@ -414,7 +418,11 @@ export type Database = {
           indodax_secret?: string | null
           is_active?: boolean | null
           name: string
+          okx_api_key?: string | null
+          okx_passphrase?: string | null
+          okx_secret?: string | null
           password_hash: string
+          platform?: string
           telegram_bot_token?: string | null
           telegram_chat_id?: string | null
           updated_at?: string | null
@@ -427,7 +435,11 @@ export type Database = {
           indodax_secret?: string | null
           is_active?: boolean | null
           name?: string
+          okx_api_key?: string | null
+          okx_passphrase?: string | null
+          okx_secret?: string | null
           password_hash?: string
+          platform?: string
           telegram_bot_token?: string | null
           telegram_chat_id?: string | null
           updated_at?: string | null
