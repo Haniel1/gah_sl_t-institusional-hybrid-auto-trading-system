@@ -86,6 +86,11 @@ export const INDICATOR_TEMPLATES = [
     description: 'Sesi trading: Asia, Eropa, Amerika, Pasifik, dan overlap London-NY & Tokyo-London.',
     pineCode: '',
   },
+  {
+    id: 'order-flow', name: 'Order Flow (Buy vs Sell)', category: 'Volume',
+    description: 'Menampilkan perbandingan jumlah buyer vs seller berdasarkan estimasi volume. Histogram hijau = buyer dominan, merah = seller dominan. Garis kuning = ratio buyer/seller kumulatif. Panel bawah menampilkan persentase buyer vs seller.',
+    pineCode: '',
+  },
 ];
 
 interface StrategyPanelProps {

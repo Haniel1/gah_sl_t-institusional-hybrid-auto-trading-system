@@ -1531,6 +1531,92 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
       }
     }
 
+    // --- Order Flow (Buy vs Sell) ---
+    if (activeIndicators.includes('order-flow')) {
+      // Estimate buy/sell volume per candle based on price action
+      const buyVolumes: number[] = [];
+      const sellVolumes: number[] = [];
+      
+      for (const c of candles) {
+        const totalVol = c.volume;
+        const range = c.high - c.low;
+        const bodySize = Math.abs(c.close - c.open);
+        const wickUp = c.high - Math.max(c.open, c.close);
+        const wickDown = Math.min(c.open, c.close) - c.low;
+        
+        // Enhanced estimation using wick analysis
+        let buyRatio: number;
+        if (range > 0) {
+          const bodyRatio = bodySize / range;
+          const wickRatio = range > 0 ? wickDown / range : 0;
+          if (c.close >= c.open) {
+            // Bullish candle: more buy pressure
+            buyRatio = 0.5 + bodyRatio * 0.3 + wickRatio * 0.2;
+          } else {
+            // Bearish candle: more sell pressure
+            buyRatio = 0.5 - bodyRatio * 0.3 - (range > 0 ? wickUp / range : 0) * 0.2;
+          }
+        } else {
+          buyRatio = 0.5;
+        }
+        
+        buyRatio = Math.max(0.1, Math.min(0.9, buyRatio));
+        buyVolumes.push(totalVol * buyRatio);
+        sellVolumes.push(totalVol * (1 - buyRatio));
+      }
+
+      // Net flow histogram (buy - sell)
+      const netFlow = buyVolumes.map((b, i) => b - sellVolumes[i]);
+      const flowSeries = chartInstance.current!.addSeries(HistogramSeries, {
+        priceScaleId: 'order-flow',
+        lastValueVisible: true, priceLineVisible: false,
+        priceFormat: { type: 'volume' },
+      });
+      flowSeries.setData(candles.map((c, i) => ({
+        time: c.time as any,
+        value: netFlow[i],
+        color: netFlow[i] >= 0 ? 'rgba(34, 197, 94, 0.7)' : 'rgba(239, 68, 68, 0.7)',
+      })));
+      chartInstance.current?.priceScale('order-flow').applyOptions({
+        scaleMargins: { top: 0.82, bottom: 0 },
+      });
+      indicatorSeriesRefs.current.push(flowSeries);
+
+      // Cumulative buy/sell ratio line
+      let cumBuy = 0, cumSell = 0;
+      const ratioData: number[] = [];
+      for (let i = 0; i < candles.length; i++) {
+        cumBuy += buyVolumes[i];
+        cumSell += sellVolumes[i];
+        ratioData.push(cumSell > 0 ? cumBuy / cumSell : 1);
+      }
+      const ratioSeries = chartInstance.current!.addSeries(LineSeries, {
+        color: '#eab308', lineWidth: 2, priceScaleId: 'order-flow-ratio',
+        lastValueVisible: true, priceLineVisible: false,
+      });
+      ratioSeries.setData(candles.map((c, i) => ({ time: c.time as any, value: ratioData[i] })));
+      chartInstance.current?.priceScale('order-flow-ratio').applyOptions({
+        scaleMargins: { top: 0.75, bottom: 0.05 },
+      });
+      indicatorSeriesRefs.current.push(ratioSeries);
+
+      // Add markers for extreme imbalance
+      const window20 = 20;
+      for (let i = window20; i < candles.length; i++) {
+        let windowBuy = 0, windowSell = 0;
+        for (let j = i - window20 + 1; j <= i; j++) {
+          windowBuy += buyVolumes[j];
+          windowSell += sellVolumes[j];
+        }
+        const ratio = windowSell > 0 ? windowBuy / windowSell : 1;
+        if (ratio > 1.8) {
+          markers.push({ time: candles[i].time, position: 'belowBar', color: '#22c55e', shape: 'circle', text: `B:${(ratio).toFixed(1)}x` });
+        } else if (ratio < 0.55) {
+          markers.push({ time: candles[i].time, position: 'aboveBar', color: '#ef4444', shape: 'circle', text: `S:${(1/ratio).toFixed(1)}x` });
+        }
+      }
+    }
+
     if (markersRef.current) {
       try { markersRef.current.detach(); } catch {}
       markersRef.current = null;
