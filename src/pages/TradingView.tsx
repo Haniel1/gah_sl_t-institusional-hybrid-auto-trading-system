@@ -576,7 +576,7 @@ export default function TradingView() {
         {/* CENTER: Chart */}
         <div className="flex-1 min-w-0 flex flex-col max-w-[650px] mx-auto">
           <div className="h-[45vh] min-h-[280px] max-h-[420px]">
-            <TradingChart pair={selectedPair} strategy={strategy} chartType={chartType as any} indicatorTemplate={activeIndicator as any} customPineCode={activeIndicator === 'custom-pine' ? customPineCode : ''} />
+            <TradingChart pair={selectedPair} strategies={strategy !== 'none' ? [strategy] : []} chartType={chartType as any} activeIndicators={activeIndicator ? [activeIndicator] : []} customPineCode={activeIndicator === 'custom-pine' ? customPineCode : ''} />
           </div>
 
           {/* Pine Code Editor */}

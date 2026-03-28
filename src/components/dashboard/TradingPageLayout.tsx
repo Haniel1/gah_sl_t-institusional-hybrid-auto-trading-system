@@ -18,8 +18,6 @@ import {
   BarChart3, ChevronDown, ChevronUp, Settings, Bot, Loader2,
 } from 'lucide-react';
 
-type StrategyType = string;
-
 interface TradingPageLayoutProps {
   mode: 'short-term' | 'long-term';
   defaultCoins: string[];
@@ -44,7 +42,9 @@ export function TradingPageLayout({
   const [watchlist, setWatchlist] = useState<string[]>(defaultCoins);
   const [selectedCoin, setSelectedCoin] = useState<string>(defaultCoins[1] || defaultCoins[0] || 'BTC');
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeStrategy, setActiveStrategy] = useState<StrategyType>(defaultIndicators[0] || 'halving');
+  const [activeStrategies, setActiveStrategies] = useState<string[]>(defaultIndicators.length > 0 ? [defaultIndicators[0]] : []);
+  const [activeIndicators, setActiveIndicators] = useState<string[]>([]);
+  const [customPineCode, setCustomPineCode] = useState('');
   const [sortBy, setSortBy] = useState<'VOL' | 'CHG%' | 'PRICE'>('VOL');
   const [strategyOpen, setStrategyOpen] = useState(false);
   const [tradeLoading, setTradeLoading] = useState<'buy' | 'sell' | 'auto' | null>(null);
@@ -264,7 +264,7 @@ export function TradingPageLayout({
             {/* Chart - lebih compact untuk lihat FVG & Liquidity */}
             <div className="w-full h-[55vh] sm:h-[60vh] lg:h-[65vh] max-w-[650px] mx-auto max-h-[700px] min-h-[350px]">
               {activeCoinData ? (
-                <TradingChart pair={selectedPair} strategy={activeStrategy} />
+                <TradingChart pair={selectedPair} strategies={activeStrategies} activeIndicators={activeIndicators} customPineCode={customPineCode} />
               ) : (
                 <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
                   Pilih koin dari daftar di kiri
@@ -302,12 +302,20 @@ export function TradingPageLayout({
               <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
                 strategyOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
               }`}>
-                <StrategyPanel activeStrategy={activeStrategy} onStrategyChange={setActiveStrategy} />
+                <StrategyPanel
+                  activeStrategies={activeStrategies} onStrategyToggle={(id: string) => setActiveStrategies(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
+                  activeIndicators={activeIndicators} onIndicatorToggle={(id: string) => setActiveIndicators(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
+                  customPineCode={customPineCode} onCustomPineCodeChange={setCustomPineCode}
+                />
               </div>
             </div>
           ) : (
             <div className="lg:w-[260px] shrink-0 border-l border-border bg-card">
-              <StrategyPanel activeStrategy={activeStrategy} onStrategyChange={setActiveStrategy} />
+              <StrategyPanel
+                activeStrategies={activeStrategies} onStrategyToggle={(id: string) => setActiveStrategies(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
+                activeIndicators={activeIndicators} onIndicatorToggle={(id: string) => setActiveIndicators(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
+                customPineCode={customPineCode} onCustomPineCodeChange={setCustomPineCode}
+              />
             </div>
           )}
         </div>

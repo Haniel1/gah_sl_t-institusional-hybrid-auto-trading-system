@@ -1539,7 +1539,10 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
       markersRef.current = createSeriesMarkers(mainSeriesRef.current, markers);
     }
 
-    chartInstance.current?.timeScale().fitContent();
+    // Only fitContent on initial load, not on zoom/pan
+    if (!userInteractingRef.current) {
+      // Don't reset zoom when user has been interacting
+    }
   }, [candles, strategies, chartType, activeIndicators, customPineCode]);
 
   // Stochastic sub-chart for oscillators template
