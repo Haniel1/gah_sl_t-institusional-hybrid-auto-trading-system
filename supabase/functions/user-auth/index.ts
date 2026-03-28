@@ -67,7 +67,7 @@ serve(async (req) => {
 
     // ── REGISTER (add new user) ──
     if (action === 'register') {
-      const { name, username, password, indodax_api_key, indodax_secret, telegram_bot_token, telegram_chat_id } = body;
+      const { name, username, password, platform, indodax_api_key, indodax_secret, okx_api_key, okx_secret, okx_passphrase, telegram_bot_token, telegram_chat_id } = body;
 
       if (!name || !username || !password) {
         return new Response(JSON.stringify({ error: 'Nama, username, dan password wajib diisi' }), {
@@ -97,12 +97,16 @@ serve(async (req) => {
           name,
           username,
           password_hash: hashedPw,
+          platform: platform || 'indodax',
           indodax_api_key: indodax_api_key || '',
           indodax_secret: indodax_secret || '',
+          okx_api_key: okx_api_key || '',
+          okx_secret: okx_secret || '',
+          okx_passphrase: okx_passphrase || '',
           telegram_bot_token: telegram_bot_token || '',
           telegram_chat_id: telegram_chat_id || '',
         })
-        .select('id, name, username, is_active, created_at')
+        .select('id, name, username, is_active, created_at, platform')
         .single();
 
       if (error) {
@@ -120,7 +124,7 @@ serve(async (req) => {
     if (action === 'list') {
       const { data: users } = await supabase
         .from('trading_users')
-        .select('id, name, username, is_active, created_at')
+        .select('id, name, username, is_active, created_at, platform')
         .order('created_at');
 
       return new Response(JSON.stringify({ users }), {
