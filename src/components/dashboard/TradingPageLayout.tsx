@@ -276,7 +276,7 @@ export function TradingPageLayout({
             <div className="border-t border-border p-3">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <FavoriteCoins onSelectPair={handleSelectPair} selectedPair={selectedPair} />
-                <AutoTradePanel pair={selectedPair} strategy={activeStrategy} onOpenSettings={() => {}} />
+                <AutoTradePanel pair={selectedPair} strategy={activeStrategies[0] || 'none'} onOpenSettings={() => {}} />
               </div>
               <div className="mt-3">
                 <AIAdvisorPanel
