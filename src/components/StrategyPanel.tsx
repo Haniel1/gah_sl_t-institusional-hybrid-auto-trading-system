@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { getCurrentHalvingPhase } from '@/lib/strategies';
 import { parsePineScript } from '@/lib/pine-parser';
 import { toast } from 'sonner';
+import { GAINZ_VERSIONS, type GainzVersion } from '@/lib/tradingIndicators';
 import {
   Zap, BarChart3, Clock, Crosshair, Layers, Scale, TrendingUp,
   Box, XCircle, Activity, GitBranch, Waves, ChevronDown, ChevronUp,
@@ -102,6 +103,8 @@ interface StrategyPanelProps {
   selectedPair?: string;
   customPineCode?: string;
   onCustomPineCodeChange?: (code: string) => void;
+  gainzVersion?: GainzVersion;
+  onGainzVersionChange?: (v: GainzVersion) => void;
 }
 
 export default function StrategyPanel({
@@ -109,6 +112,7 @@ export default function StrategyPanel({
   activeIndicators, onIndicatorToggle,
   onApplyPineCode, selectedPair = '',
   customPineCode = '', onCustomPineCodeChange,
+  gainzVersion = 'V2_Alpha', onGainzVersionChange,
 }: StrategyPanelProps) {
   const phase = getCurrentHalvingPhase();
   const [panelTab, setPanelTab] = useState<'strategies' | 'indicators' | 'pine'>('strategies');
@@ -180,13 +184,34 @@ export default function StrategyPanel({
                 </button>
               );
             })}
+            {/* GainzAlgo Version Selector */}
+            {activeStrategies.includes('gainzalgo') && (
+              <div className="border border-primary/20 rounded-md p-2.5 bg-primary/5 space-y-2">
+                <p className="text-[9px] text-primary font-bold uppercase tracking-wider">GainzAlgo Version</p>
+                <div className="space-y-1">
+                  {GAINZ_VERSIONS.map(v => (
+                    <button key={v.id} onClick={() => onGainzVersionChange?.(v.id)}
+                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition-all text-[10px] ${
+                        gainzVersion === v.id ? 'bg-primary/15 border border-primary/30' : 'hover:bg-muted border border-transparent'
+                      }`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${gainzVersion === v.id ? 'bg-primary animate-pulse' : 'bg-muted-foreground/30'}`} />
+                      <div>
+                        <span className={`font-bold ${v.style}`}>{v.name}</span>
+                        <span className="text-muted-foreground ml-1.5">{v.desc}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {activeStrategies.length > 0 && (
               <button onClick={() => activeStrategies.forEach(s => onStrategyToggle(s))}
                 className="w-full py-1.5 text-[10px] font-semibold rounded-md text-muted-foreground border border-border hover:bg-muted mt-2">
                 <XCircle className="w-3 h-3 inline mr-1" /> Hapus Semua ({activeStrategies.length} aktif)
               </button>
             )}
-            <StrategyInfo activeStrategies={activeStrategies} phase={phase} />
+            <StrategyInfo activeStrategies={activeStrategies} phase={phase} gainzVersion={gainzVersion} />
           </div>
         )}
 
@@ -336,7 +361,8 @@ export default function StrategyPanel({
 }
 
 /* ─── Strategy Info Sub-component ─── */
-function StrategyInfo({ activeStrategies, phase }: { activeStrategies: string[]; phase: any }) {
+function StrategyInfo({ activeStrategies, phase, gainzVersion }: { activeStrategies: string[]; phase: any; gainzVersion?: GainzVersion }) {
+  const versionInfo = GAINZ_VERSIONS.find(v => v.id === (gainzVersion || 'V2_Alpha'));
   const infos: Record<string, React.ReactNode> = {
     'swing-trading': (
       <div className="space-y-1 text-[10px] text-muted-foreground">
@@ -354,7 +380,7 @@ function StrategyInfo({ activeStrategies, phase }: { activeStrategies: string[];
         <p className="font-mono text-xs text-muted-foreground">{phase.weeksPost} weeks post 4th halving</p>
       </>
     ),
-    gainzalgo: <div className="space-y-1 text-[10px] text-muted-foreground"><p>• ATR(14) + EMA(12,26) momentum</p><p>• Break of Structure detection</p></div>,
+    gainzalgo: <div className="space-y-1 text-[10px] text-muted-foreground"><p>• Mode: <span className={`font-bold ${versionInfo?.style || ''}`}>{versionInfo?.name || 'V2 Alpha'}</span></p><p>• {versionInfo?.desc}</p></div>,
     fabio: <div className="space-y-1 text-[10px] text-muted-foreground"><p>• Volume Profile (POC/VAH/VAL)</p><p>• CVD + Absorption detection</p></div>,
     crt: <div className="space-y-1 text-[10px] text-muted-foreground"><p>• 4H candle sweep reversal</p><p>• SELL: sweep High, BUY: sweep Low</p></div>,
     poi: <div className="space-y-1 text-[10px] text-muted-foreground"><p>• Fair Value Gap & Order Block</p><p>• Entry saat harga kembali ke zona POI</p></div>,
