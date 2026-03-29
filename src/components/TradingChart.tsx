@@ -1709,7 +1709,7 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
     if (!userInteractingRef.current) {
       // Don't reset zoom when user has been interacting
     }
-  }, [candles, strategies, chartType, activeIndicators, customPineCode]);
+  }, [candles, strategies, chartType, activeIndicators, customPineCode, gainzVersion]);
 
   // Stochastic sub-chart for oscillators template
   useEffect(() => {
