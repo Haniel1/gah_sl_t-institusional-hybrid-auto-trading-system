@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { GainzVersion } from '@/lib/tradingIndicators';
 import IndodaxPortfolio from '@/components/IndodaxPortfolio';
 import CoinSidebar from '@/components/CoinSidebar';
 import TradingChart from '@/components/TradingChart';
@@ -41,6 +42,7 @@ export default function Dashboard() {
   const [bottomTab, setBottomTab] = useState<'favorites' | 'autotrade' | 'prediction' | 'orderbook' | 'trades' | 'technical' | 'alerts' | 'ai'>('favorites');
   const [activeIndicators, setActiveIndicators] = useState<string[]>([]);
   const [customPineCode, setCustomPineCode] = useState('');
+  const [gainzVersion, setGainzVersion] = useState<GainzVersion>('V2_Alpha');
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { user, logout } = useAuth();
