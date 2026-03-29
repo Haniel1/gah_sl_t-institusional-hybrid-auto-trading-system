@@ -266,7 +266,7 @@ export function TradingPageLayout({
             {/* Chart - lebih compact untuk lihat FVG & Liquidity */}
             <div className="w-full h-[55vh] sm:h-[60vh] lg:h-[65vh] max-w-[650px] mx-auto max-h-[700px] min-h-[350px]">
               {activeCoinData ? (
-                <TradingChart pair={selectedPair} strategies={activeStrategies} activeIndicators={activeIndicators} customPineCode={customPineCode} />
+                <TradingChart pair={selectedPair} strategies={activeStrategies} activeIndicators={activeIndicators} customPineCode={customPineCode} gainzVersion={gainzVersion} />
               ) : (
                 <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
                   Pilih koin dari daftar di kiri
@@ -308,6 +308,7 @@ export function TradingPageLayout({
                   activeStrategies={activeStrategies} onStrategyToggle={(id: string) => setActiveStrategies(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
                   activeIndicators={activeIndicators} onIndicatorToggle={(id: string) => setActiveIndicators(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
                   customPineCode={customPineCode} onCustomPineCodeChange={setCustomPineCode}
+                  gainzVersion={gainzVersion} onGainzVersionChange={setGainzVersion}
                 />
               </div>
             </div>
@@ -317,6 +318,7 @@ export function TradingPageLayout({
                 activeStrategies={activeStrategies} onStrategyToggle={(id: string) => setActiveStrategies(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
                 activeIndicators={activeIndicators} onIndicatorToggle={(id: string) => setActiveIndicators(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
                 customPineCode={customPineCode} onCustomPineCodeChange={setCustomPineCode}
+                gainzVersion={gainzVersion} onGainzVersionChange={setGainzVersion}
               />
             </div>
           )}
