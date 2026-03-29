@@ -1,8 +1,9 @@
-// TradingChart v5 - with Pine Script parser support + multi-strategy/indicator stacking
+// TradingChart v6 - GainzAlgo 5-version + multi-strategy/indicator stacking
 import { useEffect, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, createSeriesMarkers, type IChartApi, ColorType, LineType } from 'lightweight-charts';
 import { useIndodaxCandles } from '@/hooks/useIndodax';
 import { calculateGainzAlgo, calculateFabioValentini, getCurrentHalvingPhase } from '@/lib/strategies';
+import { calculateGainzCloneSignals, calculateEMAArray, calculateSMAArray, calculateBBArrays, calculateStochRSIArrays, calculateMACDArray, calculateRSIArray, type GainzVersion, GAINZ_VERSIONS } from '@/lib/tradingIndicators';
 import { calculateCRTOverlay, calculatePOIStrategy, calculateBalanceArea, calculateMultiTFSR, calculateDarvasBox } from '@/lib/strategies/index';
 import { useSignalNotifier } from '@/hooks/useSignalNotifier';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,11 +17,12 @@ interface TradingChartProps {
   chartType?: ChartTypeId;
   activeIndicators?: string[];
   customPineCode?: string;
+  gainzVersion?: GainzVersion;
 }
 
 const TIMEFRAMES = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'];
 
-export default function TradingChart({ pair, strategies, chartType = 'candle', activeIndicators = [], customPineCode = '' }: TradingChartProps) {
+export default function TradingChart({ pair, strategies, chartType = 'candle', activeIndicators = [], customPineCode = '', gainzVersion = 'V2_Alpha' }: TradingChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const oscRef = useRef<HTMLDivElement>(null);
   const stochRef = useRef<HTMLDivElement>(null);
