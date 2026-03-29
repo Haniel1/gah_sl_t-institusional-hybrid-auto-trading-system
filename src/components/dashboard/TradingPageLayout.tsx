@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import type { GainzVersion } from '@/lib/tradingIndicators';
 import { CoinData } from '@/types/crypto';
 import { AddCoinDialog } from './AddCoinDialog';
 import { calculateSignal } from '@/utils/signals';
@@ -45,6 +46,7 @@ export function TradingPageLayout({
   const [activeStrategies, setActiveStrategies] = useState<string[]>(defaultIndicators.length > 0 ? [defaultIndicators[0]] : []);
   const [activeIndicators, setActiveIndicators] = useState<string[]>([]);
   const [customPineCode, setCustomPineCode] = useState('');
+  const [gainzVersion, setGainzVersion] = useState<GainzVersion>('V2_Alpha');
   const [sortBy, setSortBy] = useState<'VOL' | 'CHG%' | 'PRICE'>('VOL');
   const [strategyOpen, setStrategyOpen] = useState(false);
   const [tradeLoading, setTradeLoading] = useState<'buy' | 'sell' | 'auto' | null>(null);
