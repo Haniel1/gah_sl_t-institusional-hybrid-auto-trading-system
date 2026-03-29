@@ -1,8 +1,9 @@
-// TradingChart v5 - with Pine Script parser support + multi-strategy/indicator stacking
+// TradingChart v6 - GainzAlgo 5-version + multi-strategy/indicator stacking
 import { useEffect, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, createSeriesMarkers, type IChartApi, ColorType, LineType } from 'lightweight-charts';
 import { useIndodaxCandles } from '@/hooks/useIndodax';
 import { calculateGainzAlgo, calculateFabioValentini, getCurrentHalvingPhase } from '@/lib/strategies';
+import { calculateGainzCloneSignals, calculateEMAArray, calculateSMAArray, calculateBBArrays, calculateStochRSIArrays, calculateMACD, calculateRSIArray, type GainzVersion, GAINZ_VERSIONS } from '@/lib/tradingIndicators';
 import { calculateCRTOverlay, calculatePOIStrategy, calculateBalanceArea, calculateMultiTFSR, calculateDarvasBox } from '@/lib/strategies/index';
 import { useSignalNotifier } from '@/hooks/useSignalNotifier';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,11 +17,12 @@ interface TradingChartProps {
   chartType?: ChartTypeId;
   activeIndicators?: string[];
   customPineCode?: string;
+  gainzVersion?: GainzVersion;
 }
 
 const TIMEFRAMES = ['1m', '5m', '15m', '1h', '4h', '1d', '1w'];
 
-export default function TradingChart({ pair, strategies, chartType = 'candle', activeIndicators = [], customPineCode = '' }: TradingChartProps) {
+export default function TradingChart({ pair, strategies, chartType = 'candle', activeIndicators = [], customPineCode = '', gainzVersion = 'V2_Alpha' }: TradingChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const oscRef = useRef<HTMLDivElement>(null);
   const stochRef = useRef<HTMLDivElement>(null);
@@ -341,18 +343,96 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
     }
 
     if (strategies.includes('gainzalgo')) {
-      const signals = calculateGainzAlgo(candles);
+      // New 5-version GainzAlgo Clone
+      const signals = calculateGainzCloneSignals(candles, gainzVersion);
+      const versionMeta = GAINZ_VERSIONS.find(v => v.id === gainzVersion);
+      
       for (const s of signals) {
+        const label = s.confidenceScore !== undefined
+          ? `${s.type === 'buy' ? 'BUY' : 'SELL'} (${gainzVersion}:${s.confidenceScore})`
+          : `${s.type === 'buy' ? 'BUY' : 'SELL'} (${gainzVersion})`;
         markers.push({
           time: s.time,
           position: s.type === 'buy' ? 'belowBar' : 'aboveBar',
           color: s.type === 'buy' ? '#22c55e' : '#ef4444',
           shape: s.type === 'buy' ? 'arrowUp' : 'arrowDown',
-          text: s.type === 'buy' ? 'BUY' : 'SELL',
+          text: label,
         });
       }
 
-      // Momentum oscillator sub-chart
+      // Version-specific overlays
+      if (gainzVersion === 'Standard') {
+        // EMA 50 line
+        const ema50 = calculateEMAArray(closes, 50);
+        const s = chartInstance.current!.addSeries(LineSeries, {
+          color: '#3b82f6', lineWidth: 2, priceScaleId: 'right',
+          lastValueVisible: true, priceLineVisible: false,
+        });
+        s.setData(candles.map((c, i) => ({ time: c.time as any, value: ema50[i] })));
+        indicatorSeriesRefs.current.push(s);
+      } else if (gainzVersion === 'Pro') {
+        // EMA 20 + MACD histogram
+        const ema20 = calculateEMAArray(closes, 20);
+        const s = chartInstance.current!.addSeries(LineSeries, {
+          color: '#eab308', lineWidth: 2, priceScaleId: 'right',
+          lastValueVisible: true, priceLineVisible: false,
+        });
+        s.setData(candles.map((c, i) => ({ time: c.time as any, value: ema20[i] })));
+        indicatorSeriesRefs.current.push(s);
+      } else if (gainzVersion === 'V2_Essential') {
+        // SMA 50 + SMA 200
+        const sma50 = calculateSMAArray(closes, 50);
+        const sma200 = calculateSMAArray(closes, 200);
+        const s1 = chartInstance.current!.addSeries(LineSeries, {
+          color: '#22c55e', lineWidth: 2, priceScaleId: 'right',
+          lastValueVisible: true, priceLineVisible: false,
+        });
+        s1.setData(candles.map((c, i) => ({ time: c.time as any, value: sma50[i] })));
+        indicatorSeriesRefs.current.push(s1);
+        const s2 = chartInstance.current!.addSeries(LineSeries, {
+          color: '#ef4444', lineWidth: 2, priceScaleId: 'right',
+          lastValueVisible: true, priceLineVisible: false,
+        });
+        s2.setData(candles.map((c, i) => ({ time: c.time as any, value: sma200[i] })));
+        indicatorSeriesRefs.current.push(s2);
+      } else if (gainzVersion === 'V2_Proficient') {
+        // Bollinger Bands + EMA 9
+        const bb = calculateBBArrays(closes, 20, 2);
+        const ema9 = calculateEMAArray(closes, 9);
+        const colors = ['rgba(168, 85, 247, 0.6)', 'rgba(168, 85, 247, 0.3)', 'rgba(168, 85, 247, 0.6)'];
+        [bb.upper, bb.middle, bb.lower].forEach((data, idx) => {
+          const s = chartInstance.current!.addSeries(LineSeries, {
+            color: colors[idx], lineWidth: idx === 1 ? 1 : 2, priceScaleId: 'right',
+            lastValueVisible: false, priceLineVisible: false,
+          });
+          s.setData(candles.map((c, i) => ({ time: c.time as any, value: data[i] })));
+          indicatorSeriesRefs.current.push(s);
+        });
+        const e9s = chartInstance.current!.addSeries(LineSeries, {
+          color: '#f97316', lineWidth: 2, priceScaleId: 'right',
+          lastValueVisible: true, priceLineVisible: false,
+        });
+        e9s.setData(candles.map((c, i) => ({ time: c.time as any, value: ema9[i] })));
+        indicatorSeriesRefs.current.push(e9s);
+      } else if (gainzVersion === 'V2_Alpha') {
+        // Fast EMA 5 + EMA 10
+        const ema5 = calculateEMAArray(closes, 5);
+        const ema10 = calculateEMAArray(closes, 10);
+        const s1 = chartInstance.current!.addSeries(LineSeries, {
+          color: '#06b6d4', lineWidth: 2, priceScaleId: 'right',
+          lastValueVisible: true, priceLineVisible: false,
+        });
+        s1.setData(candles.map((c, i) => ({ time: c.time as any, value: ema5[i] })));
+        indicatorSeriesRefs.current.push(s1);
+        const s2 = chartInstance.current!.addSeries(LineSeries, {
+          color: '#f97316', lineWidth: 2, priceScaleId: 'right',
+          lastValueVisible: true, priceLineVisible: false,
+        });
+        s2.setData(candles.map((c, i) => ({ time: c.time as any, value: ema10[i] })));
+        indicatorSeriesRefs.current.push(s2);
+      }
+
+      // Momentum oscillator sub-chart (shared for all versions)
       if (oscChartInstance.current) {
         const emaFast = ema(closes, 12);
         const emaSlow = ema(closes, 26);
@@ -1629,7 +1709,7 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
     if (!userInteractingRef.current) {
       // Don't reset zoom when user has been interacting
     }
-  }, [candles, strategies, chartType, activeIndicators, customPineCode]);
+  }, [candles, strategies, chartType, activeIndicators, customPineCode, gainzVersion]);
 
   // Stochastic sub-chart for oscillators template
   useEffect(() => {
@@ -1807,7 +1887,7 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
     for (const strat of strategies) {
       let signals: { type: string; time: number }[] = [];
       switch (strat) {
-        case 'gainzalgo': signals = calculateGainzAlgo(candles); break;
+        case 'gainzalgo': signals = calculateGainzCloneSignals(candles, gainzVersion); break;
         case 'fabio': signals = calculateFabioValentini(candles); break;
         case 'crt': signals = calculateCRTOverlay(candles); break;
         case 'poi': signals = calculatePOIStrategy(candles); break;
