@@ -136,6 +136,7 @@ export default function Dashboard() {
                   strategies={strategies}
                   activeIndicators={activeIndicators}
                   customPineCode={customPineCode}
+                  gainzVersion={gainzVersion}
                 />
               </div>
 
@@ -196,6 +197,7 @@ export default function Dashboard() {
                       activeIndicators={activeIndicators} onIndicatorToggle={handleIndicatorToggle}
                       onApplyPineCode={handleApplyPineCode} selectedPair={selectedPair}
                       customPineCode={customPineCode} onCustomPineCodeChange={setCustomPineCode}
+                      gainzVersion={gainzVersion} onGainzVersionChange={setGainzVersion}
                     />
                   </div>
                 </div>
@@ -207,6 +209,7 @@ export default function Dashboard() {
                   activeIndicators={activeIndicators} onIndicatorToggle={handleIndicatorToggle}
                   onApplyPineCode={handleApplyPineCode} selectedPair={selectedPair}
                   customPineCode={customPineCode} onCustomPineCodeChange={setCustomPineCode}
+                  gainzVersion={gainzVersion} onGainzVersionChange={setGainzVersion}
                 />
               </div>
             )}
