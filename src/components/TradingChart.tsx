@@ -1887,7 +1887,7 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
     for (const strat of strategies) {
       let signals: { type: string; time: number }[] = [];
       switch (strat) {
-        case 'gainzalgo': signals = calculateGainzAlgo(candles); break;
+        case 'gainzalgo': signals = calculateGainzCloneSignals(candles, gainzVersion); break;
         case 'fabio': signals = calculateFabioValentini(candles); break;
         case 'crt': signals = calculateCRTOverlay(candles); break;
         case 'poi': signals = calculatePOIStrategy(candles); break;
