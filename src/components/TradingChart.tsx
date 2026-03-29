@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, createSeriesMarkers, type IChartApi, ColorType, LineType } from 'lightweight-charts';
 import { useIndodaxCandles } from '@/hooks/useIndodax';
 import { calculateGainzAlgo, calculateFabioValentini, getCurrentHalvingPhase } from '@/lib/strategies';
-import { calculateGainzCloneSignals, calculateEMAArray, calculateSMAArray, calculateBBArrays, calculateStochRSIArrays, calculateMACDArray, calculateRSIArray, type GainzVersion, GAINZ_VERSIONS } from '@/lib/tradingIndicators';
+import { calculateGainzCloneSignals, calculateEMAArray, calculateSMAArray, calculateBBArrays, calculateStochRSIArrays, calculateMACD, calculateRSIArray, type GainzVersion, GAINZ_VERSIONS } from '@/lib/tradingIndicators';
 import { calculateCRTOverlay, calculatePOIStrategy, calculateBalanceArea, calculateMultiTFSR, calculateDarvasBox } from '@/lib/strategies/index';
 import { useSignalNotifier } from '@/hooks/useSignalNotifier';
 import { useAuth } from '@/contexts/AuthContext';
