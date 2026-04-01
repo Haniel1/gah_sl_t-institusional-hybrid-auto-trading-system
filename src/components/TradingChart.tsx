@@ -2027,6 +2027,55 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
         )}
       </div>
 
+      {/* Smart Money Structure Trend Matrix Panel */}
+      {strategies.includes('smart-money') && candles.length > 200 && (() => {
+        const smcResult = calculateSmartMoneyStructure(candles, DEFAULT_SMC_CONFIG);
+        const td = smcResult.trendData;
+        if (!td) return null;
+        const strengthColor = td.trendStrength > 50 ? '#00E676' : td.trendStrength > 0 ? '#76FF03' : td.trendStrength > -50 ? '#FF6B35' : '#FF1744';
+        const confColor = td.confidence >= 75 ? '#00E5FF' : td.confidence >= 60 ? '#00D9FF' : '#FFB627';
+        const cvdDisplay = `${Math.round(td.cvd / 1000)}K`;
+        const cvdColor = td.cvd > 0 ? '#76FF03' : td.cvd < 0 ? '#FF1744' : '#FFB627';
+        return (
+          <div className="border-t border-border bg-[hsl(220,20%,4%)] px-3 py-2 font-mono">
+            <div className="flex items-center gap-4 flex-wrap">
+              {/* Smart Money Header */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold" style={{ color: '#00F5FF' }}>⚡ SMART MONEY</span>
+                <span className="text-[9px] text-muted-foreground">v3.0</span>
+              </div>
+              {/* Strength */}
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] text-muted-foreground">📊 Strength</span>
+                <span className="text-[11px] font-bold" style={{ color: strengthColor }}>{Math.round(td.trendStrength)}</span>
+              </div>
+              {/* Confidence */}
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] text-muted-foreground">🎯 Confidence</span>
+                <span className="text-[11px] font-bold" style={{ color: confColor }}>{td.confidence}%</span>
+              </div>
+              {/* CVD */}
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] text-muted-foreground">💎 Volume</span>
+                <span className="text-[10px] font-bold" style={{ color: cvdColor }}>{cvdDisplay}</span>
+              </div>
+              {/* Trend Predictions */}
+              <div className="flex items-center gap-1.5 ml-auto">
+                <span className="text-[9px] font-bold" style={{ color: '#E040FB' }}>🔮 TREND</span>
+                {td.predictions.map(p => (
+                  <div key={p.tf} className="flex flex-col items-center">
+                    <span className="text-[8px] text-muted-foreground">{p.tf}</span>
+                    <span className="text-sm font-bold" style={{ color: p.direction === '▲' ? '#00E676' : p.direction === '▼' ? '#FF1744' : '#FFB627' }}>
+                      {p.direction}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* GainzAlgo Oscillator Sub-Panel */}
       {strategies.includes('gainzalgo') && (
         <>
