@@ -6,7 +6,7 @@ import { GAINZ_VERSIONS, type GainzVersion } from '@/lib/tradingIndicators';
 import {
   Zap, BarChart3, Clock, Crosshair, Layers, Scale, TrendingUp,
   Box, XCircle, Activity, GitBranch, Waves, ChevronDown, ChevronUp,
-  Code, BookOpen, Plus, Save, Trash2, Edit3,
+  Code, BookOpen, Plus, Save, Trash2, Edit3, Brain,
 } from 'lucide-react';
 
 /* ─── Core Strategies ─── */
