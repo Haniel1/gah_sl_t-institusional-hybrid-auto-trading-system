@@ -397,6 +397,83 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
       }
     }
 
+    // --- Volatility Regimes | GainzAlgo ---
+    if (strategies.includes('volatility-regimes')) {
+      const vrResult = calculateVolatilityRegimes(candles, DEFAULT_VOL_REGIME_CONFIG);
+
+      // ATR Bands (3 levels)
+      const bandConfigs = [
+        { upper: vrResult.bands.upper1, lower: vrResult.bands.lower1, opacity: 0.6, width: 1 as 1 | 2 | 3 | 4 },
+        { upper: vrResult.bands.upper2, lower: vrResult.bands.lower2, opacity: 0.4, width: 1 as 1 | 2 | 3 | 4 },
+        { upper: vrResult.bands.upper3, lower: vrResult.bands.lower3, opacity: 0.2, width: 1 as 1 | 2 | 3 | 4 },
+      ];
+      for (const bc of bandConfigs) {
+        const upperS = chartInstance.current!.addSeries(LineSeries, {
+          color: `rgba(33, 150, 243, ${bc.opacity})`, lineWidth: bc.width, priceScaleId: 'right',
+          lastValueVisible: false, priceLineVisible: false,
+        });
+        upperS.setData(candles.map((c, i) => ({ time: c.time as any, value: bc.upper[i] })));
+        indicatorSeriesRefs.current.push(upperS);
+
+        const lowerS = chartInstance.current!.addSeries(LineSeries, {
+          color: `rgba(244, 67, 54, ${bc.opacity})`, lineWidth: bc.width, priceScaleId: 'right',
+          lastValueVisible: false, priceLineVisible: false,
+        });
+        lowerS.setData(candles.map((c, i) => ({ time: c.time as any, value: bc.lower[i] })));
+        indicatorSeriesRefs.current.push(lowerS);
+      }
+
+      // Regime background
+      const regimeBgData = candles.map((c, i) => ({
+        time: c.time as any,
+        value: Math.max(...highs) * 1.05,
+        color: vrResult.regimeColors[i] || 'transparent',
+      })).filter(d => d.color !== 'transparent');
+
+      if (regimeBgData.length > 0) {
+        const bgS = chartInstance.current!.addSeries(HistogramSeries, {
+          priceScaleId: 'vol-regime-bg', lastValueVisible: false, priceLineVisible: false,
+        });
+        bgS.setData(regimeBgData);
+        chartInstance.current?.priceScale('vol-regime-bg').applyOptions({ scaleMargins: { top: 0, bottom: 0 }, visible: false });
+        indicatorSeriesRefs.current.push(bgS);
+      }
+
+      // SL/TP levels for last bar
+      if (vrResult.levels) {
+        const lv = vrResult.levels;
+        const lastCandles = candles.slice(-20);
+        const levelLines = [
+          { value: lv.bullSL, color: 'rgba(38, 166, 154, 0.5)', label: 'SL Long' },
+          { value: lv.bearSL, color: 'rgba(239, 83, 80, 0.5)', label: 'SL Short' },
+          { value: lv.bullTP1, color: 'rgba(255, 235, 59, 0.4)', label: 'TP1' },
+          { value: lv.bullTP2, color: 'rgba(255, 235, 59, 0.3)', label: 'TP2' },
+          { value: lv.bullTP3, color: 'rgba(255, 235, 59, 0.2)', label: 'TP3' },
+          { value: lv.support, color: 'rgba(76, 175, 80, 0.4)', label: 'Support' },
+          { value: lv.resistance, color: 'rgba(244, 67, 54, 0.4)', label: 'Resistance' },
+        ];
+        for (const ll of levelLines) {
+          const s = chartInstance.current!.addSeries(LineSeries, {
+            color: ll.color, lineWidth: 1, priceScaleId: 'right',
+            lastValueVisible: false, priceLineVisible: false,
+          });
+          s.setData(lastCandles.map(c => ({ time: c.time as any, value: ll.value })));
+          indicatorSeriesRefs.current.push(s);
+        }
+      }
+
+      // Signals as markers
+      for (const sig of vrResult.signals) {
+        markers.push({
+          time: sig.time,
+          position: sig.position === 'above' ? 'aboveBar' : 'belowBar',
+          color: sig.color,
+          shape: sig.type === 'bull_trend' ? 'arrowUp' : sig.type === 'bear_trend' ? 'arrowDown' : 'circle',
+          text: sig.label,
+        });
+      }
+    }
+
     if (strategies.includes('swing-trading')) {
       for (let i = 5; i < candles.length - 5; i++) {
         const isHigh = highs.slice(i - 5, i).every(h => h <= highs[i]) && highs.slice(i + 1, i + 6).every(h => h <= highs[i]);
