@@ -6,11 +6,12 @@ import { GAINZ_VERSIONS, type GainzVersion } from '@/lib/tradingIndicators';
 import {
   Zap, BarChart3, Clock, Crosshair, Layers, Scale, TrendingUp,
   Box, XCircle, Activity, GitBranch, Waves, ChevronDown, ChevronUp,
-  Code, BookOpen, Plus, Save, Trash2, Edit3,
+  Code, BookOpen, Plus, Save, Trash2, Edit3, Brain,
 } from 'lucide-react';
 
 /* ─── Core Strategies ─── */
 const STRATEGIES = [
+  { id: 'smart-money', name: 'Smart Money Structure', icon: Brain, desc: 'GainzAlgo: CHoCH, BOS, Liquidity, Divergence, Trend Matrix' },
   { id: 'swing-trading', name: 'Swing Trading', icon: TrendingUp, desc: 'Swing High/Low detection — auto trade signal' },
   { id: 'halving', name: 'Halving Cycle', icon: Clock, desc: 'Bitcoin halving profit zones' },
   { id: 'gainzalgo', name: 'GainzAlgo V2', icon: Zap, desc: 'Multi-layer momentum + BOS' },

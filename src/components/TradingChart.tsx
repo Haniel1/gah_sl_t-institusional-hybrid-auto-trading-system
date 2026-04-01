@@ -1,10 +1,11 @@
-// TradingChart v6 - GainzAlgo 5-version + multi-strategy/indicator stacking
+// TradingChart v7 - Smart Money Structure + GainzAlgo 5-version + multi-strategy/indicator stacking
 import { useEffect, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, createSeriesMarkers, type IChartApi, ColorType, LineType } from 'lightweight-charts';
 import { useIndodaxCandles } from '@/hooks/useIndodax';
 import { calculateGainzAlgo, calculateFabioValentini, getCurrentHalvingPhase } from '@/lib/strategies';
 import { calculateGainzCloneSignals, calculateEMAArray, calculateSMAArray, calculateBBArrays, calculateStochRSIArrays, calculateMACD, calculateRSIArray, type GainzVersion, GAINZ_VERSIONS } from '@/lib/tradingIndicators';
 import { calculateCRTOverlay, calculatePOIStrategy, calculateBalanceArea, calculateMultiTFSR, calculateDarvasBox } from '@/lib/strategies/index';
+import { calculateSmartMoneyStructure, DEFAULT_SMC_CONFIG, type SMCResult } from '@/lib/strategies/smart-money';
 import { useSignalNotifier } from '@/hooks/useSignalNotifier';
 import { useAuth } from '@/contexts/AuthContext';
 import { parsePineScript, computePineData } from '@/lib/pine-parser';
@@ -332,6 +333,68 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
     // ═══════════════════════════════════════════════════
     // STRATEGIES (independent if blocks - stackable)
     // ═══════════════════════════════════════════════════
+
+    // --- Smart Money Structure | GainzAlgo ---
+    if (strategies.includes('smart-money')) {
+      const smcResult = calculateSmartMoneyStructure(candles, DEFAULT_SMC_CONFIG);
+
+      // Render signals as markers
+      for (const sig of smcResult.signals) {
+        const isAbove = ['sell', 'get_ready_sell', 'liq_high', 'flow_sell', 'div_bear'].includes(sig.type);
+        markers.push({
+          time: sig.time,
+          position: isAbove ? 'aboveBar' : 'belowBar',
+          color: sig.color,
+          shape: sig.type.includes('buy') || sig.type === 'div_bull' || sig.type === 'liq_low' ? 'arrowUp'
+               : sig.type.includes('sell') || sig.type === 'div_bear' || sig.type === 'liq_high' ? 'arrowDown'
+               : 'circle',
+          text: sig.label,
+        });
+      }
+
+      // Render CHoCH / BOS levels as horizontal lines
+      for (const level of smcResult.levels) {
+        const levelCandles = candles.filter(c => c.time >= level.startTime && c.time <= level.endTime);
+        if (levelCandles.length === 0) continue;
+        const labelText = level.type.startsWith('choch') ? 'CHoCH' : 'BOS';
+        const s = chartInstance.current!.addSeries(LineSeries, {
+          color: level.color, lineWidth: 2, priceScaleId: 'right',
+          lastValueVisible: false, priceLineVisible: false,
+        });
+        s.setData(levelCandles.map(c => ({ time: c.time as any, value: level.price })));
+        indicatorSeriesRefs.current.push(s);
+
+        // Label marker at start of level
+        markers.push({
+          time: levelCandles[0].time,
+          position: level.type.includes('sell') ? 'aboveBar' : 'belowBar',
+          color: level.color,
+          shape: 'circle',
+          text: labelText,
+        });
+      }
+
+      // Render support/resistance trendlines as extended lines
+      for (const tl of smcResult.trendLines) {
+        const startIdx = candles.findIndex(c => c.time >= tl.x1Time);
+        const endIdx = candles.findIndex(c => c.time >= tl.x2Time);
+        if (startIdx < 0 || endIdx < 0) continue;
+
+        // Extend the trendline to the end of the chart
+        const slope = (endIdx - startIdx) !== 0 ? (tl.y2 - tl.y1) / (endIdx - startIdx) : 0;
+        const lineData = [];
+        for (let k = startIdx; k < candles.length; k++) {
+          lineData.push({ time: candles[k].time as any, value: tl.y1 + slope * (k - startIdx) });
+        }
+
+        const s = chartInstance.current!.addSeries(LineSeries, {
+          color: tl.color, lineWidth: 3, priceScaleId: 'right',
+          lastValueVisible: false, priceLineVisible: false,
+        });
+        s.setData(lineData);
+        indicatorSeriesRefs.current.push(s);
+      }
+    }
 
     if (strategies.includes('swing-trading')) {
       for (let i = 5; i < candles.length - 5; i++) {
@@ -1894,6 +1957,11 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
         case 'balance': signals = calculateBalanceArea(candles); break;
         case 'multitf': signals = calculateMultiTFSR(candles); break;
         case 'darvas': signals = calculateDarvasBox(candles); break;
+        case 'smart-money': {
+          const smcRes = calculateSmartMoneyStructure(candles, DEFAULT_SMC_CONFIG);
+          signals = smcRes.signals.filter(s => s.type === 'buy' || s.type === 'sell').map(s => ({ type: s.type, time: s.time }));
+          break;
+        }
       }
       allSignals = allSignals.concat(signals);
     }
@@ -1958,6 +2026,55 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
           </div>
         )}
       </div>
+
+      {/* Smart Money Structure Trend Matrix Panel */}
+      {strategies.includes('smart-money') && candles.length > 200 && (() => {
+        const smcResult = calculateSmartMoneyStructure(candles, DEFAULT_SMC_CONFIG);
+        const td = smcResult.trendData;
+        if (!td) return null;
+        const strengthColor = td.trendStrength > 50 ? '#00E676' : td.trendStrength > 0 ? '#76FF03' : td.trendStrength > -50 ? '#FF6B35' : '#FF1744';
+        const confColor = td.confidence >= 75 ? '#00E5FF' : td.confidence >= 60 ? '#00D9FF' : '#FFB627';
+        const cvdDisplay = `${Math.round(td.cvd / 1000)}K`;
+        const cvdColor = td.cvd > 0 ? '#76FF03' : td.cvd < 0 ? '#FF1744' : '#FFB627';
+        return (
+          <div className="border-t border-border bg-[hsl(220,20%,4%)] px-3 py-2 font-mono">
+            <div className="flex items-center gap-4 flex-wrap">
+              {/* Smart Money Header */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold" style={{ color: '#00F5FF' }}>⚡ SMART MONEY</span>
+                <span className="text-[9px] text-muted-foreground">v3.0</span>
+              </div>
+              {/* Strength */}
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] text-muted-foreground">📊 Strength</span>
+                <span className="text-[11px] font-bold" style={{ color: strengthColor }}>{Math.round(td.trendStrength)}</span>
+              </div>
+              {/* Confidence */}
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] text-muted-foreground">🎯 Confidence</span>
+                <span className="text-[11px] font-bold" style={{ color: confColor }}>{td.confidence}%</span>
+              </div>
+              {/* CVD */}
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] text-muted-foreground">💎 Volume</span>
+                <span className="text-[10px] font-bold" style={{ color: cvdColor }}>{cvdDisplay}</span>
+              </div>
+              {/* Trend Predictions */}
+              <div className="flex items-center gap-1.5 ml-auto">
+                <span className="text-[9px] font-bold" style={{ color: '#E040FB' }}>🔮 TREND</span>
+                {td.predictions.map(p => (
+                  <div key={p.tf} className="flex flex-col items-center">
+                    <span className="text-[8px] text-muted-foreground">{p.tf}</span>
+                    <span className="text-sm font-bold" style={{ color: p.direction === '▲' ? '#00E676' : p.direction === '▼' ? '#FF1744' : '#FFB627' }}>
+                      {p.direction}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* GainzAlgo Oscillator Sub-Panel */}
       {strategies.includes('gainzalgo') && (
