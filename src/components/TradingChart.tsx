@@ -1957,6 +1957,11 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
         case 'balance': signals = calculateBalanceArea(candles); break;
         case 'multitf': signals = calculateMultiTFSR(candles); break;
         case 'darvas': signals = calculateDarvasBox(candles); break;
+        case 'smart-money': {
+          const smcRes = calculateSmartMoneyStructure(candles, DEFAULT_SMC_CONFIG);
+          signals = smcRes.signals.filter(s => s.type === 'buy' || s.type === 'sell').map(s => ({ type: s.type, time: s.time }));
+          break;
+        }
       }
       allSignals = allSignals.concat(signals);
     }
