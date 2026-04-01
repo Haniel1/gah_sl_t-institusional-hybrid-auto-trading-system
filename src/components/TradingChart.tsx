@@ -2154,6 +2154,50 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
         );
       })()}
 
+      {/* Volatility Regimes Info Panel */}
+      {strategies.includes('volatility-regimes') && candles.length > 30 && (() => {
+        const vrResult = calculateVolatilityRegimes(candles, DEFAULT_VOL_REGIME_CONFIG);
+        const info = vrResult.lastInfo;
+        if (!info) return null;
+        const regimeColorMap: Record<string, string> = {
+          COMPRESSION: '#4CAF50', EXPANSION: '#FF9800', HIGH_VOLATILITY: '#F44336', EXHAUSTION: '#9C27B0', NEUTRAL: '#9CA3AF',
+        };
+        const rc = regimeColorMap[info.regime] || '#9CA3AF';
+        return (
+          <div className="border-t border-border bg-[hsl(220,20%,4%)] px-3 py-2 font-mono">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold" style={{ color: rc }}>📊 VOLATILITY REGIMES</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] text-muted-foreground">Regime</span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ color: 'white', backgroundColor: rc + '80' }}>
+                  {info.regime.replace('_', ' ')}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] text-muted-foreground">ATR Ratio</span>
+                <span className="text-[10px] font-bold" style={{ color: info.atrRatio > 1.4 ? '#F44336' : info.atrRatio > 1.15 ? '#FF9800' : '#4CAF50' }}>
+                  {info.atrRatio.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] text-muted-foreground">Percentile</span>
+                <span className="text-[10px] font-bold" style={{ color: info.atrPercentile > 80 ? '#F44336' : info.atrPercentile < 20 ? '#4CAF50' : '#FFEB3B' }}>
+                  {info.atrPercentile.toFixed(0)}%
+                </span>
+              </div>
+              <div className="flex items-center gap-1 ml-auto">
+                <span className="text-[9px] text-muted-foreground">💰 Risk</span>
+                <span className="text-[10px] font-bold text-foreground">${info.riskAmount.toFixed(0)}</span>
+                <span className="text-[9px] text-muted-foreground">Size</span>
+                <span className="text-[10px] font-bold text-foreground">{info.positionSize.toFixed(4)}</span>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* GainzAlgo Oscillator Sub-Panel */}
       {strategies.includes('gainzalgo') && (
         <>
