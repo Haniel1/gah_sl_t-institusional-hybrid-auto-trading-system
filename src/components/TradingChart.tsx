@@ -6,6 +6,7 @@ import { calculateGainzAlgo, calculateFabioValentini, getCurrentHalvingPhase } f
 import { calculateGainzCloneSignals, calculateEMAArray, calculateSMAArray, calculateBBArrays, calculateStochRSIArrays, calculateMACD, calculateRSIArray, type GainzVersion, GAINZ_VERSIONS } from '@/lib/tradingIndicators';
 import { calculateCRTOverlay, calculatePOIStrategy, calculateBalanceArea, calculateMultiTFSR, calculateDarvasBox } from '@/lib/strategies/index';
 import { calculateSmartMoneyStructure, DEFAULT_SMC_CONFIG, type SMCResult } from '@/lib/strategies/smart-money';
+import { calculateVolatilityRegimes, DEFAULT_VOL_REGIME_CONFIG } from '@/lib/strategies/volatility-regimes';
 import { useSignalNotifier } from '@/hooks/useSignalNotifier';
 import { useAuth } from '@/contexts/AuthContext';
 import { parsePineScript, computePineData } from '@/lib/pine-parser';
