@@ -334,6 +334,68 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
     // STRATEGIES (independent if blocks - stackable)
     // ═══════════════════════════════════════════════════
 
+    // --- Smart Money Structure | GainzAlgo ---
+    if (strategies.includes('smart-money')) {
+      const smcResult = calculateSmartMoneyStructure(candles, DEFAULT_SMC_CONFIG);
+
+      // Render signals as markers
+      for (const sig of smcResult.signals) {
+        const isAbove = ['sell', 'get_ready_sell', 'liq_high', 'flow_sell', 'div_bear'].includes(sig.type);
+        markers.push({
+          time: sig.time,
+          position: isAbove ? 'aboveBar' : 'belowBar',
+          color: sig.color,
+          shape: sig.type.includes('buy') || sig.type === 'div_bull' || sig.type === 'liq_low' ? 'arrowUp'
+               : sig.type.includes('sell') || sig.type === 'div_bear' || sig.type === 'liq_high' ? 'arrowDown'
+               : 'circle',
+          text: sig.label,
+        });
+      }
+
+      // Render CHoCH / BOS levels as horizontal lines
+      for (const level of smcResult.levels) {
+        const levelCandles = candles.filter(c => c.time >= level.startTime && c.time <= level.endTime);
+        if (levelCandles.length === 0) continue;
+        const labelText = level.type.startsWith('choch') ? 'CHoCH' : 'BOS';
+        const s = chartInstance.current!.addSeries(LineSeries, {
+          color: level.color, lineWidth: 2, priceScaleId: 'right',
+          lastValueVisible: false, priceLineVisible: false,
+        });
+        s.setData(levelCandles.map(c => ({ time: c.time as any, value: level.price })));
+        indicatorSeriesRefs.current.push(s);
+
+        // Label marker at start of level
+        markers.push({
+          time: levelCandles[0].time,
+          position: level.type.includes('sell') ? 'aboveBar' : 'belowBar',
+          color: level.color,
+          shape: 'circle',
+          text: labelText,
+        });
+      }
+
+      // Render support/resistance trendlines as extended lines
+      for (const tl of smcResult.trendLines) {
+        const startIdx = candles.findIndex(c => c.time >= tl.x1Time);
+        const endIdx = candles.findIndex(c => c.time >= tl.x2Time);
+        if (startIdx < 0 || endIdx < 0) continue;
+
+        // Extend the trendline to the end of the chart
+        const slope = (endIdx - startIdx) !== 0 ? (tl.y2 - tl.y1) / (endIdx - startIdx) : 0;
+        const lineData = [];
+        for (let k = startIdx; k < candles.length; k++) {
+          lineData.push({ time: candles[k].time as any, value: tl.y1 + slope * (k - startIdx) });
+        }
+
+        const s = chartInstance.current!.addSeries(LineSeries, {
+          color: tl.color, lineWidth: 3, priceScaleId: 'right',
+          lastValueVisible: false, priceLineVisible: false,
+        });
+        s.setData(lineData);
+        indicatorSeriesRefs.current.push(s);
+      }
+    }
+
     if (strategies.includes('swing-trading')) {
       for (let i = 5; i < candles.length - 5; i++) {
         const isHigh = highs.slice(i - 5, i).every(h => h <= highs[i]) && highs.slice(i + 1, i + 6).every(h => h <= highs[i]);
