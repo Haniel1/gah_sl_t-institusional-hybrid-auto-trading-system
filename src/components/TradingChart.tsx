@@ -6,6 +6,7 @@ import { calculateGainzAlgo, calculateFabioValentini, getCurrentHalvingPhase } f
 import { calculateGainzCloneSignals, calculateEMAArray, calculateSMAArray, calculateBBArrays, calculateStochRSIArrays, calculateMACD, calculateRSIArray, type GainzVersion, GAINZ_VERSIONS } from '@/lib/tradingIndicators';
 import { calculateCRTOverlay, calculatePOIStrategy, calculateBalanceArea, calculateMultiTFSR, calculateDarvasBox } from '@/lib/strategies/index';
 import { calculateSmartMoneyStructure, DEFAULT_SMC_CONFIG, type SMCResult } from '@/lib/strategies/smart-money';
+import { calculateVolatilityRegimes, DEFAULT_VOL_REGIME_CONFIG } from '@/lib/strategies/volatility-regimes';
 import { useSignalNotifier } from '@/hooks/useSignalNotifier';
 import { useAuth } from '@/contexts/AuthContext';
 import { parsePineScript, computePineData } from '@/lib/pine-parser';
@@ -393,6 +394,83 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
         });
         s.setData(lineData);
         indicatorSeriesRefs.current.push(s);
+      }
+    }
+
+    // --- Volatility Regimes | GainzAlgo ---
+    if (strategies.includes('volatility-regimes')) {
+      const vrResult = calculateVolatilityRegimes(candles, DEFAULT_VOL_REGIME_CONFIG);
+
+      // ATR Bands (3 levels)
+      const bandConfigs = [
+        { upper: vrResult.bands.upper1, lower: vrResult.bands.lower1, opacity: 0.6, width: 1 as 1 | 2 | 3 | 4 },
+        { upper: vrResult.bands.upper2, lower: vrResult.bands.lower2, opacity: 0.4, width: 1 as 1 | 2 | 3 | 4 },
+        { upper: vrResult.bands.upper3, lower: vrResult.bands.lower3, opacity: 0.2, width: 1 as 1 | 2 | 3 | 4 },
+      ];
+      for (const bc of bandConfigs) {
+        const upperS = chartInstance.current!.addSeries(LineSeries, {
+          color: `rgba(33, 150, 243, ${bc.opacity})`, lineWidth: bc.width, priceScaleId: 'right',
+          lastValueVisible: false, priceLineVisible: false,
+        });
+        upperS.setData(candles.map((c, i) => ({ time: c.time as any, value: bc.upper[i] })));
+        indicatorSeriesRefs.current.push(upperS);
+
+        const lowerS = chartInstance.current!.addSeries(LineSeries, {
+          color: `rgba(244, 67, 54, ${bc.opacity})`, lineWidth: bc.width, priceScaleId: 'right',
+          lastValueVisible: false, priceLineVisible: false,
+        });
+        lowerS.setData(candles.map((c, i) => ({ time: c.time as any, value: bc.lower[i] })));
+        indicatorSeriesRefs.current.push(lowerS);
+      }
+
+      // Regime background
+      const regimeBgData = candles.map((c, i) => ({
+        time: c.time as any,
+        value: Math.max(...highs) * 1.05,
+        color: vrResult.regimeColors[i] || 'transparent',
+      })).filter(d => d.color !== 'transparent');
+
+      if (regimeBgData.length > 0) {
+        const bgS = chartInstance.current!.addSeries(HistogramSeries, {
+          priceScaleId: 'vol-regime-bg', lastValueVisible: false, priceLineVisible: false,
+        });
+        bgS.setData(regimeBgData);
+        chartInstance.current?.priceScale('vol-regime-bg').applyOptions({ scaleMargins: { top: 0, bottom: 0 }, visible: false });
+        indicatorSeriesRefs.current.push(bgS);
+      }
+
+      // SL/TP levels for last bar
+      if (vrResult.levels) {
+        const lv = vrResult.levels;
+        const lastCandles = candles.slice(-20);
+        const levelLines = [
+          { value: lv.bullSL, color: 'rgba(38, 166, 154, 0.5)', label: 'SL Long' },
+          { value: lv.bearSL, color: 'rgba(239, 83, 80, 0.5)', label: 'SL Short' },
+          { value: lv.bullTP1, color: 'rgba(255, 235, 59, 0.4)', label: 'TP1' },
+          { value: lv.bullTP2, color: 'rgba(255, 235, 59, 0.3)', label: 'TP2' },
+          { value: lv.bullTP3, color: 'rgba(255, 235, 59, 0.2)', label: 'TP3' },
+          { value: lv.support, color: 'rgba(76, 175, 80, 0.4)', label: 'Support' },
+          { value: lv.resistance, color: 'rgba(244, 67, 54, 0.4)', label: 'Resistance' },
+        ];
+        for (const ll of levelLines) {
+          const s = chartInstance.current!.addSeries(LineSeries, {
+            color: ll.color, lineWidth: 1, priceScaleId: 'right',
+            lastValueVisible: false, priceLineVisible: false,
+          });
+          s.setData(lastCandles.map(c => ({ time: c.time as any, value: ll.value })));
+          indicatorSeriesRefs.current.push(s);
+        }
+      }
+
+      // Signals as markers
+      for (const sig of vrResult.signals) {
+        markers.push({
+          time: sig.time,
+          position: sig.position === 'above' ? 'aboveBar' : 'belowBar',
+          color: sig.color,
+          shape: sig.type === 'bull_trend' ? 'arrowUp' : sig.type === 'bear_trend' ? 'arrowDown' : 'circle',
+          text: sig.label,
+        });
       }
     }
 
@@ -2070,6 +2148,50 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
                     </span>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Volatility Regimes Info Panel */}
+      {strategies.includes('volatility-regimes') && candles.length > 30 && (() => {
+        const vrResult = calculateVolatilityRegimes(candles, DEFAULT_VOL_REGIME_CONFIG);
+        const info = vrResult.lastInfo;
+        if (!info) return null;
+        const regimeColorMap: Record<string, string> = {
+          COMPRESSION: '#4CAF50', EXPANSION: '#FF9800', HIGH_VOLATILITY: '#F44336', EXHAUSTION: '#9C27B0', NEUTRAL: '#9CA3AF',
+        };
+        const rc = regimeColorMap[info.regime] || '#9CA3AF';
+        return (
+          <div className="border-t border-border bg-[hsl(220,20%,4%)] px-3 py-2 font-mono">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold" style={{ color: rc }}>📊 VOLATILITY REGIMES</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] text-muted-foreground">Regime</span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ color: 'white', backgroundColor: rc + '80' }}>
+                  {info.regime.replace('_', ' ')}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] text-muted-foreground">ATR Ratio</span>
+                <span className="text-[10px] font-bold" style={{ color: info.atrRatio > 1.4 ? '#F44336' : info.atrRatio > 1.15 ? '#FF9800' : '#4CAF50' }}>
+                  {info.atrRatio.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] text-muted-foreground">Percentile</span>
+                <span className="text-[10px] font-bold" style={{ color: info.atrPercentile > 80 ? '#F44336' : info.atrPercentile < 20 ? '#4CAF50' : '#FFEB3B' }}>
+                  {info.atrPercentile.toFixed(0)}%
+                </span>
+              </div>
+              <div className="flex items-center gap-1 ml-auto">
+                <span className="text-[9px] text-muted-foreground">💰 Risk</span>
+                <span className="text-[10px] font-bold text-foreground">${info.riskAmount.toFixed(0)}</span>
+                <span className="text-[9px] text-muted-foreground">Size</span>
+                <span className="text-[10px] font-bold text-foreground">{info.positionSize.toFixed(4)}</span>
               </div>
             </div>
           </div>

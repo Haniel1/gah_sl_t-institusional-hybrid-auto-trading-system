@@ -12,6 +12,7 @@ import {
 /* ─── Core Strategies ─── */
 const STRATEGIES = [
   { id: 'smart-money', name: 'Smart Money Structure', icon: Brain, desc: 'GainzAlgo: CHoCH, BOS, Liquidity, Divergence, Trend Matrix' },
+  { id: 'volatility-regimes', name: 'Volatility Regimes', icon: Activity, desc: 'GainzAlgo: ATR Bands, Regime Detection, Dynamic SL/TP, Risk Calc' },
   { id: 'swing-trading', name: 'Swing Trading', icon: TrendingUp, desc: 'Swing High/Low detection — auto trade signal' },
   { id: 'halving', name: 'Halving Cycle', icon: Clock, desc: 'Bitcoin halving profit zones' },
   { id: 'gainzalgo', name: 'GainzAlgo V2', icon: Zap, desc: 'Multi-layer momentum + BOS' },
