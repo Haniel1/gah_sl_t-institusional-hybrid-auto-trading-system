@@ -44,6 +44,7 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
   const userInteractingRef = useRef(false);
   const interactTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialRangeSetRef = useRef(false);
+  const prevStrategiesKeyRef = useRef('');
   const lookbackCandles = strategies.includes('halving')
     ? timeframe === '1M'
       ? 240
