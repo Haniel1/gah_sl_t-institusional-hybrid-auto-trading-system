@@ -1854,9 +1854,9 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
       markersRef.current = createSeriesMarkers(mainSeriesRef.current, markers);
     }
 
-    // Only fitContent on initial load, not on zoom/pan
-    if (!userInteractingRef.current) {
-      // Don't reset zoom when user has been interacting
+    // Restore visible range after rebuilding indicators
+    if (savedRange && initialRangeSetRef.current) {
+      chartInstance.current?.timeScale().setVisibleLogicalRange(savedRange);
     }
   }, [candles, strategies, chartType, activeIndicators, customPineCode, gainzVersion]);
 
