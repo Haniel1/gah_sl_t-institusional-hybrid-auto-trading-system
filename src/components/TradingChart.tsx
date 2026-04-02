@@ -61,7 +61,11 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
     if (strategies.includes('halving') && !['1d', '1w', '1M'].includes(timeframe)) {
       setTimeframe('1d');
     }
-    initialRangeSetRef.current = false;
+    const key = strategies.slice().sort().join(',') + '|' + timeframe + '|' + pair;
+    if (key !== prevStrategiesKeyRef.current) {
+      prevStrategiesKeyRef.current = key;
+      initialRangeSetRef.current = false;
+    }
   }, [strategies, timeframe, pair]);
 
   // Main chart - recreate when chartType changes
