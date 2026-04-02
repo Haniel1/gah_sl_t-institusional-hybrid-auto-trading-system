@@ -44,6 +44,7 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
   const userInteractingRef = useRef(false);
   const interactTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialRangeSetRef = useRef(false);
+  const prevStrategiesKeyRef = useRef('');
   const lookbackCandles = strategies.includes('halving')
     ? timeframe === '1M'
       ? 240
@@ -60,7 +61,11 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
     if (strategies.includes('halving') && !['1d', '1w', '1M'].includes(timeframe)) {
       setTimeframe('1d');
     }
-    initialRangeSetRef.current = false;
+    const key = strategies.slice().sort().join(',') + '|' + timeframe + '|' + pair;
+    if (key !== prevStrategiesKeyRef.current) {
+      prevStrategiesKeyRef.current = key;
+      initialRangeSetRef.current = false;
+    }
   }, [strategies, timeframe, pair]);
 
   // Main chart - recreate when chartType changes
@@ -309,6 +314,9 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
       const fromIdx = Math.max(0, lastIdx - visibleCandles);
       chartInstance.current.timeScale().setVisibleLogicalRange({ from: fromIdx, to: lastIdx + 3 });
     }
+
+    // --- Save visible range before rebuilding indicators ---
+    const savedRange = chartInstance.current?.timeScale().getVisibleLogicalRange();
 
     // --- Clean old indicator/strategy overlays ---
     for (const s of indicatorSeriesRefs.current) {
@@ -1846,9 +1854,9 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
       markersRef.current = createSeriesMarkers(mainSeriesRef.current, markers);
     }
 
-    // Only fitContent on initial load, not on zoom/pan
-    if (!userInteractingRef.current) {
-      // Don't reset zoom when user has been interacting
+    // Restore visible range after rebuilding indicators
+    if (savedRange && initialRangeSetRef.current) {
+      chartInstance.current?.timeScale().setVisibleLogicalRange(savedRange);
     }
   }, [candles, strategies, chartType, activeIndicators, customPineCode, gainzVersion]);
 
