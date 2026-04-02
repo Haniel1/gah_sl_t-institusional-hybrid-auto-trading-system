@@ -110,27 +110,26 @@ export default function Dashboard() {
       </header>
 
       {view === 'chart' ? (
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col overflow-hidden">
           {/* Market Stats Bar */}
           <MarketStatsBar pair={selectedPair} />
 
-          <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-            {/* Sidebar */}
-            {!sidebarCollapsed && !isMobile && (
-              <div className="lg:shrink-0">
-                <CoinSidebar selectedPair={selectedPair} onSelectPair={setSelectedPair} />
-              </div>
-            )}
-            {isMobile && (
-              <div className="max-h-[100px] overflow-y-auto border-b border-border">
-                <CoinSidebar selectedPair={selectedPair} onSelectPair={setSelectedPair} />
-              </div>
+          <div className="flex-1 flex flex-col xl:flex-row overflow-hidden">
+            {/* Sidebar - mobile: collapsible bar, desktop: full sidebar */}
+            {isMobile ? (
+              <CoinSidebar selectedPair={selectedPair} onSelectPair={setSelectedPair} />
+            ) : (
+              !sidebarCollapsed && (
+                <div className="shrink-0">
+                  <CoinSidebar selectedPair={selectedPair} onSelectPair={setSelectedPair} />
+                </div>
+              )
             )}
 
             {/* Main content */}
-            <div className="flex-1 min-w-0 flex flex-col">
+            <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
               {/* Chart */}
-              <div className="w-full h-[35vh] sm:h-[45vh] lg:h-[55vh] min-h-[240px]">
+              <div className="w-full h-[40vh] min-h-[200px] xl:h-[55vh]">
                 <TradingChart
                   pair={selectedPair}
                   strategies={strategies}
@@ -141,30 +140,30 @@ export default function Dashboard() {
               </div>
 
               {/* Bottom Panels */}
-              <div className="border-t border-border flex-1 min-h-0">
-                <div className="flex items-center border-b border-border bg-card/80 overflow-x-auto scrollbar-thin">
+              <div className="border-t border-border flex-1 min-h-0 flex flex-col">
+                <div className="flex items-center border-b border-border bg-card/80 overflow-x-auto scrollbar-thin shrink-0">
                   {BOTTOM_TABS.map(tab => (
                     <button key={tab.id} onClick={() => setBottomTab(tab.id)}
                       className={`tab-button whitespace-nowrap ${bottomTab === tab.id ? 'tab-button-active' : 'tab-button-inactive'}`}>
                       <span>{tab.icon}</span>
-                      <span className="hidden sm:inline">{tab.label}</span>
+                      <span className="hidden xl:inline">{tab.label}</span>
                     </button>
                   ))}
                 </div>
 
-                <div className="h-[200px] sm:h-[280px] lg:h-[350px] overflow-y-auto scrollbar-thin">
+                <div className="flex-1 min-h-[150px] max-h-[280px] xl:max-h-[350px] overflow-y-auto scrollbar-thin">
                   {bottomTab === 'favorites' && (
-                    <div className="p-2 sm:p-3">
+                    <div className="p-2">
                       <FavoriteCoins onSelectPair={setSelectedPair} selectedPair={selectedPair} />
                     </div>
                   )}
                   {bottomTab === 'autotrade' && (
-                    <div className="p-2 sm:p-3">
+                    <div className="p-2">
                       <AutoTradePanel pair={selectedPair} strategy={strategies[0] || 'none'} onOpenSettings={() => navigate('/settings')} />
                     </div>
                   )}
                   {bottomTab === 'prediction' && (
-                    <div className="p-2 sm:p-3">
+                    <div className="p-2">
                       <TimePredictionPanel symbol={selectedSymbol} />
                     </div>
                   )}
@@ -173,7 +172,7 @@ export default function Dashboard() {
                   {bottomTab === 'technical' && <TechnicalSummary pair={selectedPair} />}
                   {bottomTab === 'alerts' && <PriceAlerts pair={selectedPair} currentPrice={currentCoin?.last || 0} />}
                   {bottomTab === 'ai' && (
-                    <div className="p-2 sm:p-3 h-full overflow-y-auto scrollbar-thin">
+                    <div className="p-2 h-full overflow-y-auto scrollbar-thin">
                       <AIAdvisorPanel coin={selectedSymbol} price={currentCoin?.last || 0}
                         change24h={currentCoin?.change24h || 0} volume={currentCoin?.volumeIdr || 0} />
                     </div>
@@ -184,7 +183,7 @@ export default function Dashboard() {
 
             {/* Strategy Panel */}
             {isMobile ? (
-              <div className="border-t border-border bg-card">
+              <div className="border-t border-border bg-card shrink-0">
                 <button onClick={() => setStrategyOpen(!strategyOpen)}
                   className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors">
                   <span>⚙️ Strategy Engine {strategies.length + activeIndicators.length > 0 ? `(${strategies.length + activeIndicators.length})` : ''}</span>
@@ -203,7 +202,7 @@ export default function Dashboard() {
                 </div>
               </div>
             ) : (
-              <div className="lg:w-[280px] shrink-0 border-l border-border bg-card overflow-hidden flex flex-col">
+              <div className="xl:w-[280px] shrink-0 border-l border-border bg-card overflow-hidden flex flex-col">
                 <StrategyPanel
                   activeStrategies={strategies} onStrategyToggle={handleStrategyToggle}
                   activeIndicators={activeIndicators} onIndicatorToggle={handleIndicatorToggle}
