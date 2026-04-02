@@ -315,6 +315,9 @@ export default function TradingChart({ pair, strategies, chartType = 'candle', a
       chartInstance.current.timeScale().setVisibleLogicalRange({ from: fromIdx, to: lastIdx + 3 });
     }
 
+    // --- Save visible range before rebuilding indicators ---
+    const savedRange = chartInstance.current?.timeScale().getVisibleLogicalRange();
+
     // --- Clean old indicator/strategy overlays ---
     for (const s of indicatorSeriesRefs.current) {
       try { chartInstance.current?.removeSeries(s); } catch {}
