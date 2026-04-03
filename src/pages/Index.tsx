@@ -151,7 +151,7 @@ export default function Dashboard() {
                   ))}
                 </div>
 
-                <div className="flex-1 min-h-[150px] max-h-[280px] xl:max-h-[350px] overflow-y-auto scrollbar-thin">
+                <div className="flex-1 min-h-[150px] max-h-[280px] lg:max-h-[350px] overflow-y-auto scrollbar-thin">
                   {bottomTab === 'favorites' && (
                     <div className="p-2">
                       <FavoriteCoins onSelectPair={setSelectedPair} selectedPair={selectedPair} />
