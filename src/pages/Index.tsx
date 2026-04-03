@@ -114,7 +114,7 @@ export default function Dashboard() {
           {/* Market Stats Bar */}
           <MarketStatsBar pair={selectedPair} />
 
-          <div className="flex-1 flex flex-col xl:flex-row overflow-hidden">
+          <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
             {/* Sidebar - mobile: collapsible bar, desktop: full sidebar */}
             {isMobile ? (
               <CoinSidebar selectedPair={selectedPair} onSelectPair={setSelectedPair} />
