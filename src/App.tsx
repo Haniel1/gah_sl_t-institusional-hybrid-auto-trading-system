@@ -10,6 +10,7 @@ import AutoTradingPage from "./pages/AutoTradingPage";
 import TradeHistory from "./pages/TradeHistory";
 import TradingViewPage from "./pages/TradingView";
 import CryptoNews from "./pages/CryptoNews";
+import OKXTrading from "./pages/OKXTrading";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
