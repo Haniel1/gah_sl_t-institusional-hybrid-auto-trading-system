@@ -146,7 +146,7 @@ export default function Dashboard() {
                     <button key={tab.id} onClick={() => setBottomTab(tab.id)}
                       className={`tab-button whitespace-nowrap ${bottomTab === tab.id ? 'tab-button-active' : 'tab-button-inactive'}`}>
                       <span>{tab.icon}</span>
-                      <span className="hidden xl:inline">{tab.label}</span>
+                      <span className="hidden lg:inline">{tab.label}</span>
                     </button>
                   ))}
                 </div>
