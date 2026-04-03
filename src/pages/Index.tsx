@@ -129,7 +129,7 @@ export default function Dashboard() {
             {/* Main content */}
             <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
               {/* Chart */}
-              <div className="w-full h-[40vh] min-h-[200px] xl:h-[55vh]">
+              <div className="w-full h-[40vh] min-h-[200px] lg:h-[55vh]">
                 <TradingChart
                   pair={selectedPair}
                   strategies={strategies}
