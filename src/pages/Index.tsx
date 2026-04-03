@@ -85,7 +85,7 @@ export default function Dashboard() {
 
         <div className="ml-2 sm:ml-4 flex items-center gap-0.5 sm:gap-1">
           {NAV_ITEMS.map(item => (
-            <button key={item.key} onClick={() => setView(item.key as any)}
+            <button key={item.key} onClick={() => handleNavClick(item.key)}
               className={`px-1.5 sm:px-3 py-1 rounded-md text-[9px] sm:text-[11px] font-semibold transition-all ${
                 view === item.key ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
               }`}>
@@ -93,6 +93,10 @@ export default function Dashboard() {
               {!isMobile && item.label}
             </button>
           ))}
+          <button onClick={() => navigate('/okx-trading')}
+            className="px-1.5 sm:px-3 py-1 rounded-md text-[9px] sm:text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
+            ⚡ {!isMobile && 'OKX Futures'}
+          </button>
           <Link to="/news" className="px-1.5 sm:px-3 py-1 rounded-md text-[9px] sm:text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
             📰 {!isMobile && 'Berita'}
           </Link>
