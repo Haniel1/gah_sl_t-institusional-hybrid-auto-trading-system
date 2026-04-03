@@ -72,7 +72,7 @@ function addNewCandle(candles: OKXCandle[]): OKXCandle[] {
 }
 
 export default function OKXTrading() {
-  const { user } = useAuth();
+  const { } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'simulation' | 'auto'>('simulation');
   const [selectedStrategy, setSelectedStrategy] = useState<StrategyId>('trend-scalping');
