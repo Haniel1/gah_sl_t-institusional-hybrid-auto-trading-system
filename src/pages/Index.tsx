@@ -114,7 +114,7 @@ export default function Dashboard() {
           {/* Market Stats Bar */}
           <MarketStatsBar pair={selectedPair} />
 
-          <div className="flex-1 flex flex-col xl:flex-row overflow-hidden">
+          <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
             {/* Sidebar - mobile: collapsible bar, desktop: full sidebar */}
             {isMobile ? (
               <CoinSidebar selectedPair={selectedPair} onSelectPair={setSelectedPair} />
@@ -129,7 +129,7 @@ export default function Dashboard() {
             {/* Main content */}
             <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
               {/* Chart */}
-              <div className="w-full h-[40vh] min-h-[200px] xl:h-[55vh]">
+              <div className="w-full h-[40vh] min-h-[200px] lg:h-[55vh]">
                 <TradingChart
                   pair={selectedPair}
                   strategies={strategies}
@@ -146,12 +146,12 @@ export default function Dashboard() {
                     <button key={tab.id} onClick={() => setBottomTab(tab.id)}
                       className={`tab-button whitespace-nowrap ${bottomTab === tab.id ? 'tab-button-active' : 'tab-button-inactive'}`}>
                       <span>{tab.icon}</span>
-                      <span className="hidden xl:inline">{tab.label}</span>
+                      <span className="hidden lg:inline">{tab.label}</span>
                     </button>
                   ))}
                 </div>
 
-                <div className="flex-1 min-h-[150px] max-h-[280px] xl:max-h-[350px] overflow-y-auto scrollbar-thin">
+                <div className="flex-1 min-h-[150px] max-h-[280px] lg:max-h-[350px] overflow-y-auto scrollbar-thin">
                   {bottomTab === 'favorites' && (
                     <div className="p-2">
                       <FavoriteCoins onSelectPair={setSelectedPair} selectedPair={selectedPair} />
@@ -202,7 +202,7 @@ export default function Dashboard() {
                 </div>
               </div>
             ) : (
-              <div className="xl:w-[280px] shrink-0 border-l border-border bg-card overflow-hidden flex flex-col">
+              <div className="lg:w-[280px] shrink-0 border-l border-border bg-card overflow-hidden flex flex-col">
                 <StrategyPanel
                   activeStrategies={strategies} onStrategyToggle={handleStrategyToggle}
                   activeIndicators={activeIndicators} onIndicatorToggle={handleIndicatorToggle}
