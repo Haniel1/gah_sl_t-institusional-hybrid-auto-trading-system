@@ -57,6 +57,11 @@ export default function Dashboard() {
     { key: 'dashboard', label: 'Dashboard', emoji: '📊' },
   ];
 
+  const handleNavClick = (key: string) => {
+    if (key === 'okx') { navigate('/okx-trading'); return; }
+    setView(key as any);
+  };
+
   const handleStrategyToggle = (id: string) => {
     setStrategies(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
