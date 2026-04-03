@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft, Settings, TrendingUp, TrendingDown, Minus, Play, Square, RotateCcw, Zap, Activity, BarChart3, Bot, FlaskConical, ChevronDown, ChevronUp } from 'lucide-react';
 import { OKX_STRATEGIES, runStrategy, runAllStrategies, type OKXCandle, type OKXStrategyResult, type OKXSignal, type StrategyId } from '@/lib/okx-strategies';
