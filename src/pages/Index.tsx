@@ -202,7 +202,7 @@ export default function Dashboard() {
                 </div>
               </div>
             ) : (
-              <div className="xl:w-[280px] shrink-0 border-l border-border bg-card overflow-hidden flex flex-col">
+              <div className="lg:w-[280px] shrink-0 border-l border-border bg-card overflow-hidden flex flex-col">
                 <StrategyPanel
                   activeStrategies={strategies} onStrategyToggle={handleStrategyToggle}
                   activeIndicators={activeIndicators} onIndicatorToggle={handleIndicatorToggle}
