@@ -41,7 +41,7 @@ export default function OKXTrading() {
 
   // Simulation hook
   const {
-    simState, trades, candles, currentPrice, loading,
+    simState, trades, candles, currentPrice,
     toggleSimulation, resetSimulation, setStrategy, setLeverage,
   } = useOKXSimulation(selectedCoin);
 
