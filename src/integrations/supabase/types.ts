@@ -184,6 +184,261 @@ export type Database = {
         }
         Relationships: []
       }
+      okx_auto_config: {
+        Row: {
+          balance: number
+          created_at: string
+          enabled: boolean
+          entry_price: number | null
+          entry_time: string | null
+          id: string
+          initial_balance: number
+          last_check_at: string | null
+          leverage: number
+          loss_count: number
+          position_amount: number | null
+          position_side: string | null
+          sl_pct: number
+          status: string
+          stop_loss: number | null
+          strategy: string
+          symbol: string
+          take_profit: number | null
+          total_pnl: number
+          tp_pct: number
+          updated_at: string
+          win_count: number
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          enabled?: boolean
+          entry_price?: number | null
+          entry_time?: string | null
+          id?: string
+          initial_balance?: number
+          last_check_at?: string | null
+          leverage?: number
+          loss_count?: number
+          position_amount?: number | null
+          position_side?: string | null
+          sl_pct?: number
+          status?: string
+          stop_loss?: number | null
+          strategy?: string
+          symbol: string
+          take_profit?: number | null
+          total_pnl?: number
+          tp_pct?: number
+          updated_at?: string
+          win_count?: number
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          enabled?: boolean
+          entry_price?: number | null
+          entry_time?: string | null
+          id?: string
+          initial_balance?: number
+          last_check_at?: string | null
+          leverage?: number
+          loss_count?: number
+          position_amount?: number | null
+          position_side?: string | null
+          sl_pct?: number
+          status?: string
+          stop_loss?: number | null
+          strategy?: string
+          symbol?: string
+          take_profit?: number | null
+          total_pnl?: number
+          tp_pct?: number
+          updated_at?: string
+          win_count?: number
+        }
+        Relationships: []
+      }
+      okx_auto_log: {
+        Row: {
+          amount: number
+          created_at: string
+          entry_price: number
+          exit_price: number
+          id: string
+          leverage: number
+          pnl: number
+          pnl_pct: number
+          reason: string | null
+          side: string
+          strategy: string
+          symbol: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          entry_price: number
+          exit_price: number
+          id?: string
+          leverage?: number
+          pnl?: number
+          pnl_pct?: number
+          reason?: string | null
+          side: string
+          strategy?: string
+          symbol: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          entry_price?: number
+          exit_price?: number
+          id?: string
+          leverage?: number
+          pnl?: number
+          pnl_pct?: number
+          reason?: string | null
+          side?: string
+          strategy?: string
+          symbol?: string
+        }
+        Relationships: []
+      }
+      okx_sim_coins: {
+        Row: {
+          added_at: string
+          id: string
+          symbol: string
+        }
+        Insert: {
+          added_at?: string
+          id?: string
+          symbol: string
+        }
+        Update: {
+          added_at?: string
+          id?: string
+          symbol?: string
+        }
+        Relationships: []
+      }
+      okx_sim_state: {
+        Row: {
+          balance: number
+          created_at: string
+          entry_price: number | null
+          entry_time: string | null
+          id: string
+          initial_balance: number
+          is_running: boolean
+          last_tick_at: string | null
+          leverage: number
+          loss_count: number
+          position_amount: number | null
+          position_side: string | null
+          stop_loss: number | null
+          strategy: string
+          symbol: string
+          take_profit: number | null
+          total_pnl: number
+          updated_at: string
+          win_count: number
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          entry_price?: number | null
+          entry_time?: string | null
+          id?: string
+          initial_balance?: number
+          is_running?: boolean
+          last_tick_at?: string | null
+          leverage?: number
+          loss_count?: number
+          position_amount?: number | null
+          position_side?: string | null
+          stop_loss?: number | null
+          strategy?: string
+          symbol: string
+          take_profit?: number | null
+          total_pnl?: number
+          updated_at?: string
+          win_count?: number
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          entry_price?: number | null
+          entry_time?: string | null
+          id?: string
+          initial_balance?: number
+          is_running?: boolean
+          last_tick_at?: string | null
+          leverage?: number
+          loss_count?: number
+          position_amount?: number | null
+          position_side?: string | null
+          stop_loss?: number | null
+          strategy?: string
+          symbol?: string
+          take_profit?: number | null
+          total_pnl?: number
+          updated_at?: string
+          win_count?: number
+        }
+        Relationships: []
+      }
+      okx_sim_trades: {
+        Row: {
+          amount: number
+          created_at: string
+          entry_price: number
+          entry_time: string | null
+          exit_price: number
+          exit_time: string | null
+          id: string
+          leverage: number
+          pnl: number
+          pnl_pct: number
+          reason: string | null
+          side: string
+          strategy: string
+          symbol: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          entry_price: number
+          entry_time?: string | null
+          exit_price: number
+          exit_time?: string | null
+          id?: string
+          leverage?: number
+          pnl?: number
+          pnl_pct?: number
+          reason?: string | null
+          side: string
+          strategy?: string
+          symbol: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          entry_price?: number
+          entry_time?: string | null
+          exit_price?: number
+          exit_time?: string | null
+          id?: string
+          leverage?: number
+          pnl?: number
+          pnl_pct?: number
+          reason?: string | null
+          side?: string
+          strategy?: string
+          symbol?: string
+        }
+        Relationships: []
+      }
       simulation_coins: {
         Row: {
           added_at: string
