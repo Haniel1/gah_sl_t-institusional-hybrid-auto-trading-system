@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Settings, TrendingUp, TrendingDown, Minus, Play, Square, RotateCcw, Zap, Activity, BarChart3, Bot, FlaskConical, ChevronDown, ChevronUp, Plus, Trash2, Coins } from 'lucide-react';
+import { ArrowLeft, Settings, TrendingUp, TrendingDown, Minus, Play, Square, RotateCcw, Zap, Activity, BarChart3, Bot, FlaskConical, ChevronDown, ChevronUp, Trash2, Coins } from 'lucide-react';
 import { OKX_STRATEGIES, runStrategy, runAllStrategies, type OKXStrategyResult, type OKXSignal, type StrategyId } from '@/lib/okx-strategies';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
