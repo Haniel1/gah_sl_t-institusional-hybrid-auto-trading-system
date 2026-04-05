@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
 import TradingViewChart from '@/components/okx/TradingViewChart';
 import AddCoinDialog from '@/components/okx/AddCoinDialog';
-import { useMultiStrategySimulation, type StrategySimState } from '@/hooks/useMultiStrategySimulation';
+import { useMultiStrategySimulation } from '@/hooks/useMultiStrategySimulation';
 
 const ALL_STRATEGIES: StrategyId[] = ['trend-scalping', 'smart-money', 'multi-indicator', 'gainz-algo-v3', 'luxalgo-iof'];
 
