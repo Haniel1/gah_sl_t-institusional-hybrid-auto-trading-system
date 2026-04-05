@@ -2,7 +2,7 @@
 // Supports Long & Short positions with leverage 20x-100x
 
 export type OKXSignal = 'long' | 'short' | 'close_long' | 'close_short' | 'hold';
-export type StrategyId = 'trend-scalping' | 'smart-money' | 'multi-indicator';
+export type StrategyId = 'trend-scalping' | 'smart-money' | 'multi-indicator' | 'gainz-algo-v3' | 'luxalgo-iof';
 
 export interface OKXCandle {
   time: number;
