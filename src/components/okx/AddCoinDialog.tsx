@@ -39,10 +39,10 @@ export default function AddCoinDialog({ onAdded, existingSymbols }: AddCoinDialo
       return;
     }
 
-    // Create sim state
-    await supabase.from('okx_sim_state').insert({ symbol: sym });
-    // Create auto config for each strategy
-    for (const strategy of ['trend-scalping', 'smart-money', 'multi-indicator']) {
+    // Create sim state & auto config for each strategy
+    const strategies = ['trend-scalping', 'smart-money', 'multi-indicator', 'gainz-algo-v3', 'luxalgo-iof'];
+    for (const strategy of strategies) {
+      await supabase.from('okx_sim_state').insert({ symbol: sym, strategy });
       await supabase.from('okx_auto_config').insert({ symbol: sym, strategy });
     }
 
