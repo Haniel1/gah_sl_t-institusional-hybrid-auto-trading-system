@@ -13,7 +13,7 @@ import { useMultiStrategySimulation } from '@/hooks/useMultiStrategySimulation';
 const ALL_STRATEGIES: StrategyId[] = ['trend-scalping', 'smart-money', 'multi-indicator', 'gainz-algo-v3', 'luxalgo-iof'];
 
 export default function OKXTrading() {
-  useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [coins, setCoins] = useState<{ id: string; symbol: string }[]>([]);
   const [selectedCoin, setSelectedCoin] = useState('BTCUSDT.P');
