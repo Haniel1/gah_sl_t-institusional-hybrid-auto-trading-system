@@ -2,7 +2,7 @@
 // Supports Long & Short positions with leverage 20x-100x
 
 export type OKXSignal = 'long' | 'short' | 'close_long' | 'close_short' | 'hold';
-export type StrategyId = 'trend-scalping' | 'smart-money' | 'multi-indicator';
+export type StrategyId = 'trend-scalping' | 'smart-money' | 'multi-indicator' | 'gainz-algo-v3' | 'luxalgo-iof';
 
 export interface OKXCandle {
   time: number;
@@ -356,6 +356,248 @@ function multiIndicatorStrategy(candles: OKXCandle[]): OKXStrategyResult {
   return { signal, confidence: Math.min(confidence, 100), reasons, stopLoss, takeProfit, suggestedLeverage };
 }
 
+// ─── Strategy 4: GainzAlgo V3 (Rebz4 / Rebelz999) ──────────
+// 1H timeframe focused: EMA ribbon + RSI divergence + Volume confirmation
+
+function gainzAlgoV3Strategy(candles: OKXCandle[]): OKXStrategyResult {
+  if (candles.length < 55) return { signal: 'hold', confidence: 0, reasons: ['Data tidak cukup'], stopLoss: 0, takeProfit: 0, suggestedLeverage: 20 };
+
+  const closes = candles.map(c => c.close);
+  const volumes = candles.map(c => c.volume);
+  const last = closes[closes.length - 1];
+  const i = closes.length - 1;
+  const atrVals = atr(candles);
+  const currentATR = atrVals[i];
+
+  // EMA Ribbon (5, 8, 13, 21, 34)
+  const ema5 = ema(closes, 5);
+  const ema8 = ema(closes, 8);
+  const ema13 = ema(closes, 13);
+  const ema21 = ema(closes, 21);
+  const ema34 = ema(closes, 34);
+
+  // Ribbon alignment
+  const ribbonBull = ema5[i] > ema8[i] && ema8[i] > ema13[i] && ema13[i] > ema21[i] && ema21[i] > ema34[i];
+  const ribbonBear = ema5[i] < ema8[i] && ema8[i] < ema13[i] && ema13[i] < ema21[i] && ema21[i] < ema34[i];
+
+  // Ribbon squeeze (convergence)
+  const ribbonSpread = Math.abs(ema5[i] - ema34[i]) / last * 100;
+  const prevRibbonSpread = Math.abs(ema5[i-1] - ema34[i-1]) / closes[i-1] * 100;
+  const ribbonExpanding = ribbonSpread > prevRibbonSpread;
+
+  // RSI with divergence detection
+  const rsiVals = rsi(closes, 14);
+  const currentRSI = rsiVals[i];
+
+  // Price making lower low but RSI making higher low (bullish divergence)
+  let bullishDiv = false;
+  let bearishDiv = false;
+  if (i >= 10) {
+    const priceLow5 = Math.min(...closes.slice(i-5, i));
+    const priceLow10 = Math.min(...closes.slice(i-10, i-5));
+    const rsiLow5 = Math.min(...rsiVals.slice(i-5, i));
+    const rsiLow10 = Math.min(...rsiVals.slice(i-10, i-5));
+    if (priceLow5 < priceLow10 && rsiLow5 > rsiLow10) bullishDiv = true;
+
+    const priceHigh5 = Math.max(...closes.slice(i-5, i));
+    const priceHigh10 = Math.max(...closes.slice(i-10, i-5));
+    const rsiHigh5 = Math.max(...rsiVals.slice(i-5, i));
+    const rsiHigh10 = Math.max(...rsiVals.slice(i-10, i-5));
+    if (priceHigh5 > priceHigh10 && rsiHigh5 < rsiHigh10) bearishDiv = true;
+  }
+
+  // Volume analysis
+  const avgVol = sma(volumes, 20);
+  const volSpike = !isNaN(avgVol[i]) && volumes[i] > avgVol[i] * 1.3;
+
+  // MACD for momentum confirmation
+  const { histogram: macdHist } = macd(closes, 12, 26, 9);
+  const macdCrossUp = macdHist[i] > 0 && macdHist[i-1] <= 0;
+  const macdCrossDown = macdHist[i] < 0 && macdHist[i-1] >= 0;
+
+  let signal: OKXSignal = 'hold';
+  let confidence = 0;
+  const reasons: string[] = [];
+
+  // Long conditions
+  if (ribbonBull || (bullishDiv && currentRSI < 40)) {
+    let score = 0;
+    if (ribbonBull) { score += 25; reasons.push('EMA Ribbon bullish alignment (5>8>13>21>34)'); }
+    if (ribbonExpanding) { score += 10; reasons.push('Ribbon expanding - momentum meningkat'); }
+    if (bullishDiv) { score += 20; reasons.push('Bullish RSI divergence detected'); }
+    if (currentRSI < 40) { score += 10; reasons.push(`RSI di zona oversold (${currentRSI.toFixed(1)})`); }
+    if (macdCrossUp) { score += 20; reasons.push('MACD histogram cross bullish'); }
+    if (volSpike && closes[i] > closes[i-1]) { score += 15; reasons.push('Volume spike konfirmasi bullish'); }
+    if (score >= 55) { signal = 'long'; confidence = score; }
+  }
+
+  // Short conditions
+  if (signal === 'hold' && (ribbonBear || (bearishDiv && currentRSI > 60))) {
+    let score = 0;
+    if (ribbonBear) { score += 25; reasons.push('EMA Ribbon bearish alignment (5<8<13<21<34)'); }
+    if (ribbonExpanding) { score += 10; reasons.push('Ribbon expanding - momentum bearish kuat'); }
+    if (bearishDiv) { score += 20; reasons.push('Bearish RSI divergence detected'); }
+    if (currentRSI > 60) { score += 10; reasons.push(`RSI di zona overbought (${currentRSI.toFixed(1)})`); }
+    if (macdCrossDown) { score += 20; reasons.push('MACD histogram cross bearish'); }
+    if (volSpike && closes[i] < closes[i-1]) { score += 15; reasons.push('Volume spike konfirmasi bearish'); }
+    if (score >= 55) { signal = 'short'; confidence = score; }
+  }
+
+  // Close signals
+  if (signal === 'hold') {
+    if (ribbonBear && currentRSI > 70) {
+      signal = 'close_long'; confidence = 65;
+      reasons.push('Ribbon bearish + RSI overbought - tutup Long');
+    } else if (ribbonBull && currentRSI < 30) {
+      signal = 'close_short'; confidence = 65;
+      reasons.push('Ribbon bullish + RSI oversold - tutup Short');
+    }
+  }
+
+  const slMult = 1.8;
+  const tpMult = 3.0;
+  const stopLoss = signal === 'long' ? last - currentATR * slMult : signal === 'short' ? last + currentATR * slMult : 0;
+  const takeProfit = signal === 'long' ? last + currentATR * tpMult : signal === 'short' ? last - currentATR * tpMult : 0;
+
+  const volatilityPct = (currentATR / last) * 100;
+  const suggestedLeverage = volatilityPct > 2 ? 20 : volatilityPct > 1 ? 50 : 75;
+
+  return { signal, confidence: Math.min(confidence, 100), reasons, stopLoss, takeProfit, suggestedLeverage };
+}
+
+// ─── Strategy 5: LuxAlgo Institutional Order Flow Strength ──
+
+function luxAlgoIOFStrategy(candles: OKXCandle[]): OKXStrategyResult {
+  if (candles.length < 50) return { signal: 'hold', confidence: 0, reasons: ['Data tidak cukup'], stopLoss: 0, takeProfit: 0, suggestedLeverage: 20 };
+
+  const closes = candles.map(c => c.close);
+  const highs = candles.map(c => c.high);
+  const lows = candles.map(c => c.low);
+  const volumes = candles.map(c => c.volume);
+  const last = closes[closes.length - 1];
+  const i = closes.length - 1;
+  const atrVals = atr(candles);
+  const currentATR = atrVals[i];
+
+  // --- Order Flow Imbalance ---
+  // Delta approximation: bullish candle = buy volume, bearish = sell volume
+  const deltas: number[] = candles.map(c => {
+    const body = c.close - c.open;
+    const range = c.high - c.low || 0.01;
+    return (body / range) * c.volume;
+  });
+
+  // Cumulative delta over lookback
+  const lookback = 14;
+  const cumDelta = deltas.slice(-lookback).reduce((a, b) => a + b, 0);
+  const avgDelta = cumDelta / lookback;
+
+  // --- Institutional Accumulation/Distribution ---
+  // Large volume candles with small wicks = institutional
+  const institutionalBuys: number[] = [];
+  const institutionalSells: number[] = [];
+  const avgVol = sma(volumes, 20);
+
+  for (let j = Math.max(0, i - 20); j <= i; j++) {
+    const c = candles[j];
+    const body = Math.abs(c.close - c.open);
+    const totalRange = c.high - c.low || 0.01;
+    const bodyRatio = body / totalRange;
+
+    if (!isNaN(avgVol[j]) && c.volume > avgVol[j] * 1.5 && bodyRatio > 0.6) {
+      if (c.close > c.open) institutionalBuys.push(j);
+      else institutionalSells.push(j);
+    }
+  }
+
+  // --- Absorption Detection ---
+  // High volume but price doesn't move much = absorption
+  let absorption: 'bullish' | 'bearish' | null = null;
+  if (i >= 3) {
+    const recentVol = volumes.slice(i-2, i+1).reduce((a, b) => a + b, 0) / 3;
+    const priceMove = Math.abs(closes[i] - closes[i-2]);
+    const expectedMove = currentATR * 0.5;
+    if (!isNaN(avgVol[i]) && recentVol > avgVol[i] * 2 && priceMove < expectedMove) {
+      // High volume, low price movement = absorption
+      absorption = closes[i] > closes[i-2] ? 'bullish' : 'bearish';
+    }
+  }
+
+  // --- Sweep & Reversal ---
+  const prevSwingHigh = Math.max(...highs.slice(Math.max(0, i-20), i-1));
+  const prevSwingLow = Math.min(...lows.slice(Math.max(0, i-20), i-1));
+  const sweptHigh = highs[i] > prevSwingHigh && closes[i] < closes[i-1];
+  const sweptLow = lows[i] < prevSwingLow && closes[i] > closes[i-1];
+
+  // --- Flow Strength Classification ---
+  // Strong: institutional + delta aligned + absorption
+  // Medium: 2 of 3 conditions
+  // Weak: 1 condition
+
+  let signal: OKXSignal = 'hold';
+  let confidence = 0;
+  const reasons: string[] = [];
+
+  // Bullish flow
+  let bullFlow = 0;
+  if (avgDelta > 0) { bullFlow += 20; reasons.push(`Order flow bullish (avg delta: ${avgDelta.toFixed(0)})`); }
+  if (institutionalBuys.length > institutionalSells.length) {
+    bullFlow += 25; reasons.push(`Institutional buying detected (${institutionalBuys.length} vs ${institutionalSells.length} sells)`);
+  }
+  if (absorption === 'bullish') { bullFlow += 20; reasons.push('Bullish absorption - selling absorbed by buyers'); }
+  if (sweptLow) { bullFlow += 20; reasons.push('Liquidity sweep low + reversal (institutional entry)'); }
+  if (deltas[i] > 0 && volumes[i] > (isNaN(avgVol[i]) ? 100 : avgVol[i]) * 1.3) {
+    bullFlow += 15; reasons.push('Current candle: strong buy flow with volume');
+  }
+
+  // Bearish flow
+  let bearFlow = 0;
+  if (signal === 'hold') {
+    const bearReasons: string[] = [];
+    if (avgDelta < 0) { bearFlow += 20; bearReasons.push(`Order flow bearish (avg delta: ${avgDelta.toFixed(0)})`); }
+    if (institutionalSells.length > institutionalBuys.length) {
+      bearFlow += 25; bearReasons.push(`Institutional selling detected (${institutionalSells.length} vs ${institutionalBuys.length} buys)`);
+    }
+    if (absorption === 'bearish') { bearFlow += 20; bearReasons.push('Bearish absorption - buying absorbed by sellers'); }
+    if (sweptHigh) { bearFlow += 20; bearReasons.push('Liquidity sweep high + reversal (institutional exit)'); }
+    if (deltas[i] < 0 && volumes[i] > (isNaN(avgVol[i]) ? 100 : avgVol[i]) * 1.3) {
+      bearFlow += 15; bearReasons.push('Current candle: strong sell flow with volume');
+    }
+
+    if (bearFlow >= 55 && bearFlow > bullFlow + 10) {
+      signal = 'short';
+      confidence = bearFlow;
+      reasons.push(...bearReasons);
+    }
+  }
+
+  if (bullFlow >= 55 && bullFlow > bearFlow + 10 && signal === 'hold') {
+    signal = 'long';
+    confidence = bullFlow;
+  }
+
+  // Close signals based on flow reversal
+  if (signal === 'hold') {
+    if (avgDelta < -50 && institutionalSells.length >= 3) {
+      signal = 'close_long'; confidence = 60;
+      reasons.push('Institutional selling pressure - tutup Long');
+    } else if (avgDelta > 50 && institutionalBuys.length >= 3) {
+      signal = 'close_short'; confidence = 60;
+      reasons.push('Institutional buying pressure - tutup Short');
+    }
+  }
+
+  const slMult = 2.0;
+  const tpMult = 3.5;
+  const stopLoss = signal === 'long' ? last - currentATR * slMult : signal === 'short' ? last + currentATR * slMult : 0;
+  const takeProfit = signal === 'long' ? last + currentATR * tpMult : signal === 'short' ? last - currentATR * tpMult : 0;
+
+  const volatilityPct = (currentATR / last) * 100;
+  const suggestedLeverage = volatilityPct > 2 ? 20 : volatilityPct > 1 ? 40 : 60;
+
+  return { signal, confidence: Math.min(confidence, 100), reasons, stopLoss, takeProfit, suggestedLeverage };
+}
+
 // ─── Exports ─────────────────────────────────────────────────
 
 export const OKX_STRATEGIES: Record<StrategyId, { name: string; description: string; run: (candles: OKXCandle[]) => OKXStrategyResult }> = {
@@ -374,6 +616,16 @@ export const OKX_STRATEGIES: Record<StrategyId, { name: string; description: str
     description: 'Sistem skor dari RSI, MACD, Bollinger, Volume. Sinyal lebih akurat.',
     run: multiIndicatorStrategy,
   },
+  'gainz-algo-v3': {
+    name: 'GainzAlgo V3 (Rebz4)',
+    description: 'EMA Ribbon + RSI Divergence + MACD + Volume. Timeframe 1H. By Rebelz999.',
+    run: gainzAlgoV3Strategy,
+  },
+  'luxalgo-iof': {
+    name: 'LuxAlgo Institutional Order Flow',
+    description: 'Order flow strength, institutional accumulation/distribution, absorption & sweep detection.',
+    run: luxAlgoIOFStrategy,
+  },
 };
 
 export function runStrategy(id: StrategyId, candles: OKXCandle[]): OKXStrategyResult {
@@ -385,5 +637,7 @@ export function runAllStrategies(candles: OKXCandle[]): Record<StrategyId, OKXSt
     'trend-scalping': trendScalpingStrategy(candles),
     'smart-money': smartMoneyStrategy(candles),
     'multi-indicator': multiIndicatorStrategy(candles),
+    'gainz-algo-v3': gainzAlgoV3Strategy(candles),
+    'luxalgo-iof': luxAlgoIOFStrategy(candles),
   };
 }
