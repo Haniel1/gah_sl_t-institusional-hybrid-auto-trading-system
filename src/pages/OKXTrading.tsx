@@ -70,7 +70,6 @@ export default function OKXTrading() {
   };
 
   // Save OKX API keys
-  const { user } = useAuth();
   const saveApiKeys = async () => {
     if (!user || !apiKeyForm.api_key || !apiKeyForm.secret || !apiKeyForm.passphrase) {
       toast({ title: 'Semua field harus diisi', variant: 'destructive' });
