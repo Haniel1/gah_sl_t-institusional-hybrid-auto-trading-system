@@ -49,6 +49,6 @@ export default function TradingViewChart({ symbol = 'OKX:BTCUSDT.P', theme = 'da
   }, [symbol, theme]);
 
   return (
-    <div className="tradingview-widget-container" ref={containerRef} style={{ height, width: '100%' }} />
+    <div className="tradingview-widget-container" ref={containerRef} style={{ height: height || '100%', width: '100%' }} />
   );
 }
