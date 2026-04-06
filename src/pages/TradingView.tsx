@@ -216,6 +216,9 @@ const BOTTOM_TABS = [
 
 export default function TradingView() {
   const [selectedPair, setSelectedPair] = useState('btc_idr');
+  const [activeStrategies, setActiveStrategies] = useState<string[]>([]);
+  const [activeIndicators, setActiveIndicators] = useState<string[]>([]);
+  const [gainzVersion, setGainzVersion] = useState<GainzVersion>('V2_Alpha');
   const [strategy, setStrategy] = useState('none');
   const [activeIndicator, setActiveIndicator] = useState<string | null>(null);
   const [chartType, setChartType] = useState('candle');
