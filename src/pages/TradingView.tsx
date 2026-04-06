@@ -11,7 +11,8 @@ import RecentTradesPanel from '@/components/trading/RecentTradesPanel';
 import MarketStatsBar from '@/components/trading/MarketStatsBar';
 import TechnicalSummary from '@/components/trading/TechnicalSummary';
 import PriceAlerts from '@/components/trading/PriceAlerts';
-
+import StrategyPanel from '@/components/StrategyPanel';
+import type { GainzVersion } from '@/lib/tradingIndicators';
 /* ─── Indicator Templates ─── */
 const INDICATOR_TEMPLATES = [
   {
@@ -215,6 +216,9 @@ const BOTTOM_TABS = [
 
 export default function TradingView() {
   const [selectedPair, setSelectedPair] = useState('btc_idr');
+  const [activeStrategies, setActiveStrategies] = useState<string[]>([]);
+  const [activeIndicators, setActiveIndicators] = useState<string[]>([]);
+  const [gainzVersion, setGainzVersion] = useState<GainzVersion>('V2_Alpha');
   const [strategy, setStrategy] = useState('none');
   const [activeIndicator, setActiveIndicator] = useState<string | null>(null);
   const [chartType, setChartType] = useState('candle');
@@ -464,6 +468,22 @@ export default function TradingView() {
     }
   };
 
+  const handleStrategyToggle = (id: string) => {
+    setActiveStrategies(prev => 
+      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+    );
+    // Also update the chart strategy
+    setStrategy(prev => prev === id ? 'none' : id);
+  };
+
+  const handleIndicatorToggle = (id: string) => {
+    setActiveIndicators(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+    // Also update single active indicator for chart
+    handleSelectIndicator(id);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Top Bar */}
@@ -576,7 +596,7 @@ export default function TradingView() {
         {/* CENTER: Chart */}
         <div className="flex-1 min-w-0 flex flex-col max-w-[650px] mx-auto">
           <div className="h-[45vh] min-h-[280px] max-h-[420px]">
-            <TradingChart pair={selectedPair} strategies={strategy !== 'none' ? [strategy] : []} chartType={chartType as any} activeIndicators={activeIndicator ? [activeIndicator] : []} customPineCode={activeIndicator === 'custom-pine' ? customPineCode : ''} />
+            <TradingChart pair={selectedPair} strategies={activeStrategies.length > 0 ? activeStrategies : (strategy !== 'none' ? [strategy] : [])} chartType={chartType as any} activeIndicators={activeIndicators.length > 0 ? activeIndicators : (activeIndicator ? [activeIndicator] : [])} customPineCode={activeIndicator === 'custom-pine' ? customPineCode : ''} />
           </div>
 
           {/* Pine Code Editor */}
@@ -656,247 +676,20 @@ export default function TradingView() {
           </div>
         </div>
 
-        {/* RIGHT: Indicator Panel */}
+        {/* RIGHT: Strategy Engine Panel */}
         <div className="w-[280px] shrink-0 border-l border-border bg-card overflow-hidden flex flex-col">
-          {/* Panel Tabs */}
-          <div className="flex items-center border-b border-border">
-            <button
-              onClick={() => setPanelTab('indicators')}
-              className={`tab-button flex-1 justify-center ${
-                panelTab === 'indicators' ? 'tab-button-active' : 'tab-button-inactive'
-              }`}
-            >
-              <BarChart3 className="w-3.5 h-3.5" />
-              Template
-            </button>
-            <button
-              onClick={() => { setPanelTab('pine'); setShowPineEditor(true); }}
-              className={`tab-button flex-1 justify-center ${
-                panelTab === 'pine' ? 'tab-button-active' : 'tab-button-inactive'
-              }`}
-            >
-              <Code className="w-3.5 h-3.5" />
-              Pine Code
-            </button>
-          </div>
-
-          {/* Indicator List */}
-          {panelTab === 'indicators' ? (
-            <div className="max-h-[50vh] lg:max-h-[calc(100vh-7rem)] overflow-y-auto scrollbar-thin">
-              {INDICATOR_TEMPLATES.map(ind => {
-                const isActive = activeIndicator === ind.id;
-                return (
-                  <div key={ind.id} className="border-b border-border/50">
-                    <button
-                      onClick={() => handleSelectIndicator(ind.id)}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 text-left transition-all ${
-                        isActive ? 'bg-primary/10' : 'hover:bg-muted/50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className={`w-2 h-2 rounded-full shrink-0 transition-colors ${isActive ? 'bg-primary shadow-sm shadow-primary/50' : 'bg-muted-foreground/30'}`} />
-                        <div className="min-w-0">
-                          <div className="text-xs font-semibold text-foreground truncate">{ind.name}</div>
-                          <div className="text-[9px] text-muted-foreground">{ind.category}</div>
-                        </div>
-                      </div>
-                      {isActive ? <ChevronUp className="w-3.5 h-3.5 text-primary shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
-                    </button>
-
-                    {isActive && (
-                      <div className="px-3 pb-3 space-y-2.5 animate-slide-up">
-                        {/* Description */}
-                        <div className="bg-primary/5 border border-primary/15 rounded-lg p-2.5">
-                          <div className="flex items-center gap-1.5 mb-1">
-                            <BookOpen className="w-3 h-3 text-primary" />
-                            <span className="text-[9px] font-bold text-primary uppercase tracking-wider">Cara Penggunaan</span>
-                          </div>
-                          <p className="text-[10px] text-foreground/80 leading-relaxed">{ind.description}</p>
-                        </div>
-
-                        {/* Pine Code Preview */}
-                        <div className="bg-background border border-border rounded-lg overflow-hidden">
-                          <div className="flex items-center justify-between px-2 py-1 bg-muted/50 border-b border-border">
-                            <span className="text-[9px] font-mono text-muted-foreground">Pine Script v5</span>
-                            <button
-                              onClick={() => { setCustomPineCode(ind.pineCode); setScriptName(ind.name); setPanelTab('pine'); }}
-                              className="text-[9px] font-semibold text-primary hover:text-primary/80 transition-colors"
-                            >
-                              Edit →
-                            </button>
-                          </div>
-                          <pre className="p-2 text-[9px] font-mono text-foreground/60 whitespace-pre-wrap break-all leading-relaxed max-h-24 overflow-y-auto scrollbar-thin">
-                            {ind.pineCode}
-                          </pre>
-                        </div>
-
-                        <button
-                          onClick={() => applyPineCode(ind.pineCode, ind.name)}
-                          className="w-full py-1.5 text-[10px] font-bold rounded-md bg-primary/15 text-primary border border-primary/25 hover:bg-primary/25 transition-colors">
-                          Terapkan ke Chart
-                        </button>
-
-                        {/* Auto Trade Controls */}
-                        <div className="bg-muted/30 border border-border rounded-lg p-2.5 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-foreground uppercase tracking-wider">Auto Trade</span>
-                            <span className="text-[9px] text-muted-foreground font-mono">{selectedSymbol}/IDR</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={() => executeQuickTrade('buy')}
-                              disabled={tradeLoading !== null}
-                              className="btn-trade-buy flex-1 py-1.5 text-[10px]"
-                            >
-                              {tradeLoading === 'buy' ? <Loader2 className="w-3 h-3 animate-spin" /> : <TrendingUp className="w-3 h-3" />}
-                              BUY
-                            </button>
-                            <button
-                              onClick={toggleAutoTrade}
-                              disabled={tradeLoading !== null}
-                              className={`btn-trade-auto flex-1 py-1.5 text-[10px] ${
-                                autoTradeEnabled
-                                  ? 'bg-primary/20 text-primary border border-primary/40 shadow-sm shadow-primary/20'
-                                  : 'bg-muted text-muted-foreground border border-border hover:border-muted-foreground'
-                              }`}
-                            >
-                              {tradeLoading === 'auto' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Bot className="w-3 h-3" />}
-                              {autoTradeEnabled ? 'ON' : 'AUTO'}
-                            </button>
-                            <button
-                              onClick={() => executeQuickTrade('sell')}
-                              disabled={tradeLoading !== null}
-                              className="btn-trade-sell flex-1 py-1.5 text-[10px]"
-                            >
-                              {tradeLoading === 'sell' ? <Loader2 className="w-3 h-3 animate-spin" /> : <TrendingDown className="w-3 h-3" />}
-                              SELL
-                            </button>
-                          </div>
-                          {autoTradeEnabled && (
-                            <div className="flex items-center gap-1.5 text-[9px] text-primary font-mono animate-fade-in">
-                              <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                              Auto-trade aktif • {ind.name}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            /* Pine Code Tab */
-            <div className="max-h-[50vh] lg:max-h-[calc(100vh-7rem)] overflow-y-auto scrollbar-thin">
-              <div className="p-3 border-b border-border space-y-2">
-                <div className="flex items-center gap-2">
-                  <Plus className="w-3.5 h-3.5 text-primary" />
-                  <span className="text-[10px] font-bold text-foreground uppercase tracking-wider">
-                    {editingScript !== null ? 'Edit Indikator' : 'Tambah Indikator'}
-                  </span>
-                </div>
-
-                <input
-                  type="text"
-                  value={scriptName}
-                  onChange={e => setScriptName(e.target.value)}
-                  placeholder="Nama indikator..."
-                  className="w-full bg-background border border-border rounded-md px-2.5 py-1.5 text-xs text-foreground placeholder-muted-foreground outline-none focus:border-primary/50 transition-colors"
-                />
-
-                <textarea
-                  value={customPineCode}
-                  onChange={e => setCustomPineCode(e.target.value)}
-                  placeholder={"// @version=5\nindicator('My Indicator', overlay=true)\nplot(ta.sma(close, 20))"}
-                  className="w-full h-32 bg-background border border-border rounded-lg p-2 text-[10px] font-mono text-foreground placeholder-muted-foreground resize-none outline-none focus:border-primary/50 transition-colors scrollbar-thin"
-                  spellCheck={false}
-                />
-
-                <div className="flex items-center justify-between">
-                  <span className="text-[9px] text-muted-foreground font-mono">
-                    {customPineCode.split('\n').length} baris
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    {editingScript !== null && (
-                      <button
-                        onClick={() => { setEditingScript(null); setCustomPineCode(''); setScriptName(''); }}
-                        className="px-2.5 py-1 text-[10px] font-semibold rounded-md bg-muted text-muted-foreground border border-border hover:text-foreground transition-colors"
-                      >
-                        Batal
-                      </button>
-                    )}
-                    <button
-                      onClick={() => {
-                        if (!scriptName.trim() || !customPineCode.trim()) return;
-                        if (editingScript !== null) {
-                          updateSavedScripts(prev => prev.map((s, i) => i === editingScript ? { name: scriptName, code: customPineCode } : s));
-                          setEditingScript(null);
-                        } else {
-                          updateSavedScripts(prev => [...prev, { name: scriptName, code: customPineCode }]);
-                        }
-                        setCustomPineCode('');
-                        setScriptName('');
-                      }}
-                      disabled={!scriptName.trim() || !customPineCode.trim()}
-                      className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold rounded-md bg-primary/15 text-primary border border-primary/25 hover:bg-primary/25 disabled:opacity-40 transition-colors"
-                    >
-                      <Save className="w-3 h-3" />
-                      {editingScript !== null ? 'Update' : 'Simpan'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Saved Scripts */}
-              {savedScripts.length > 0 ? (
-                <div>
-                  <div className="px-3 py-1.5 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider border-b border-border">
-                    Tersimpan ({savedScripts.length})
-                  </div>
-                  {savedScripts.map((script, idx) => (
-                    <div key={idx} className="border-b border-border/50">
-                      <div className="flex items-center justify-between px-3 py-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Code className="w-3 h-3 text-primary shrink-0" />
-                          <span className="text-xs font-semibold text-foreground truncate">{script.name}</span>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            onClick={() => { setCustomPineCode(script.code); setScriptName(script.name); setEditingScript(idx); }}
-                            className="p-1 rounded-md hover:bg-muted transition-colors"
-                            title="Edit"
-                          >
-                            <Edit3 className="w-3 h-3 text-muted-foreground hover:text-foreground" />
-                          </button>
-                          <button
-                            onClick={() => updateSavedScripts(prev => prev.filter((_, i) => i !== idx))}
-                            className="p-1 rounded-md hover:bg-destructive/10 transition-colors"
-                            title="Hapus"
-                          >
-                            <Trash2 className="w-3 h-3 text-muted-foreground hover:text-destructive" />
-                          </button>
-                          <button
-                            onClick={() => applyPineCode(script.code, script.name)}
-                            className="px-2 py-0.5 text-[9px] font-bold rounded-md bg-primary/15 text-primary hover:bg-primary/25 transition-colors">
-                            Terapkan
-                          </button>
-                        </div>
-                      </div>
-                      <pre className="px-3 pb-2 text-[9px] font-mono text-muted-foreground whitespace-pre-wrap break-all leading-relaxed max-h-16 overflow-y-auto scrollbar-thin">
-                        {script.code.split('\n').slice(0, 4).join('\n')}{script.code.split('\n').length > 4 ? '\n...' : ''}
-                      </pre>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="px-3 py-8 text-center">
-                  <Code className="w-7 h-7 text-muted-foreground/20 mx-auto mb-2" />
-                  <p className="text-[11px] text-muted-foreground">Belum ada indikator kustom</p>
-                  <p className="text-[10px] text-muted-foreground/60 mt-0.5">Tulis Pine Script dan simpan</p>
-                </div>
-              )}
-            </div>
-          )}
+          <StrategyPanel
+            activeStrategies={activeStrategies}
+            onStrategyToggle={handleStrategyToggle}
+            activeIndicators={activeIndicators}
+            onIndicatorToggle={handleIndicatorToggle}
+            onApplyPineCode={(code, name) => applyPineCode(code, name)}
+            selectedPair={selectedPair}
+            customPineCode={customPineCode}
+            onCustomPineCodeChange={setCustomPineCode}
+            gainzVersion={gainzVersion}
+            onGainzVersionChange={setGainzVersion}
+          />
         </div>
       </div>
     </div>
