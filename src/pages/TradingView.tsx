@@ -11,7 +11,8 @@ import RecentTradesPanel from '@/components/trading/RecentTradesPanel';
 import MarketStatsBar from '@/components/trading/MarketStatsBar';
 import TechnicalSummary from '@/components/trading/TechnicalSummary';
 import PriceAlerts from '@/components/trading/PriceAlerts';
-
+import StrategyPanel from '@/components/StrategyPanel';
+import type { GainzVersion } from '@/lib/tradingIndicators';
 /* ─── Indicator Templates ─── */
 const INDICATOR_TEMPLATES = [
   {
