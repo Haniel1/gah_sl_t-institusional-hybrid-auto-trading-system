@@ -468,6 +468,22 @@ export default function TradingView() {
     }
   };
 
+  const handleStrategyToggle = (id: string) => {
+    setActiveStrategies(prev => 
+      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+    );
+    // Also update the chart strategy
+    setStrategy(prev => prev === id ? 'none' : id);
+  };
+
+  const handleIndicatorToggle = (id: string) => {
+    setActiveIndicators(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+    // Also update single active indicator for chart
+    handleSelectIndicator(id);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Top Bar */}
